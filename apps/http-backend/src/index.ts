@@ -2,7 +2,7 @@ import express from "express";
 const app = express();
 import jwt from "jsonwebtoken";
 import { middleware } from "./middleware";
-import { JWT_SECRET } from "./config";
+import { JWT_SECRET } from "@repo/common/config";
 // const JWT-SECRET: string = "dirtySecret";
 
 app.use(express.json());
