@@ -8,16 +8,18 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  username String @unique
-  name String
-  email String @unique
-  password String
+  id        Int @id @default(autoincrement())
+  username  String @unique
+  name      String
+  email     String @unique
+  password  String
+  rooms     Room[]
 }
 
 model Room {
-  id Int @id @default(autoincrement())
-  slug String @unique
+  id        Int @id @default(autoincrement())
+  slug      String @unique
   createdAt DateTime
-  userId Int
+  userId    Int
+  user      User @relation(fields: [userId], references: [id])
 }
