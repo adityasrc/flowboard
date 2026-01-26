@@ -20,9 +20,6 @@ importers:
 
   apps/http-backend:
     dependencies:
-      '@repo/common':
-        specifier: workspace:*
-        version: link:../../packages/backend-common
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/database
@@ -36,6 +33,12 @@ importers:
         specifier: ^9.0.3
         version: 9.0.3
     devDependencies:
+      '@repo/backend-common':
+        specifier: workspace:*
+        version: link:../../packages/backend-common
+      '@repo/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -79,9 +82,6 @@ importers:
 
   apps/ws-backend:
     dependencies:
-      '@repo/common':
-        specifier: workspace:*
-        version: link:../../packages/backend-common
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/database
@@ -95,6 +95,9 @@ importers:
         specifier: ^8.18.3
         version: 8.18.3
     devDependencies:
+      '@repo/backend-common':
+        specifier: workspace:*
+        version: link:../../packages/backend-common
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -117,6 +120,16 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.2
+
+  packages/common:
+    dependencies:
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
 
   packages/database:
     dependencies:
