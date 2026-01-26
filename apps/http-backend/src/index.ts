@@ -3,13 +3,18 @@ const app = express();
 import jwt from "jsonwebtoken";
 import { middleware } from "./middleware";
 import { JWT_SECRET } from "@repo/backend-common/config";
-// const JWT-SECRET: string = "dirtySecret";
-import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common/types";
+import { client } from "@repo/db/client";
+import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common";
 
 app.use(express.json());
+
 //signup - for new account(register)
 
-app.post("/signup",function(req, res){
+app.post("/signup", async function(req, res){
+    // const username = req.body.username;
+    // const name = req.body.name;
+    // const email = req.body.email;
+    // const password = req.body.password;
 
     //.Parse just returns either data or error 
     const parsedData = CreateUserSchema.safeParse(req.body);
@@ -21,6 +26,20 @@ app.post("/signup",function(req, res){
             error: parsedData.error    
         })
         return;
+    }
+    try{
+        await client.user.create({
+        data: {
+            username: parsedData.data.username,
+            name: parsedData.data.name,
+            email: parsedData.data.email,
+            password: parsedData.data.password
+        }
+    })
+    }catch(e){
+        res.status(411).json({
+            message: "User already exists with this username"
+        })
     }
     //db call here
     res.json({

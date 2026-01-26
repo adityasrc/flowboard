@@ -1,7 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-
-export const client = new PrismaClient();
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.client = void 0;
+const client_1 = require("@prisma/client");
+exports.client = new client_1.PrismaClient();
 // async function createUser() {
 //   await client.user.create({
 //     data: {
@@ -12,33 +13,16 @@ export const client = new PrismaClient();
 //     }
 //   })
 // }
-
 // createUser();
-
-
-
-
-
-
-
-
-
-
 // import { Client } from "pg";
 // import express from "express";
-
 // const app = express();
 // app.use(express.json());
 // app.use(express.urlencoded({ extended: true }));
-
 // const pgClient = new Client("postgresql://flowboard_app:dirtySecret@localhost:5432/flowboard");
-
-
 // pgClient.connect();
-
 // // async function main() {
 // //   try {
-
 // //     const userquery = 
 // //     const response = await pgClient.query("SELECT * FROM users;");
 // //     console.log(response.rows);
@@ -48,18 +32,15 @@ export const client = new PrismaClient();
 // //     await pgClient.end();
 // //   }
 // // }
-
 // app.post("/users", function (req, res) {
 //   async function main() {
 //     try {
 //       const username = req.body.username;
 //       const email = req.body.email;
 //       const password = req.body.password;
-
 //       const city = req.body.city;
 //       const country = req.body.country;
 //       const pincode = req.body.pincode;
-
 //       const userquery = await `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id`;
 //       const addressquery = await `INSERT INTO adresses ()`
 //       // const userquery = `INSERT INTO users (username, email, password) VALUES (${username}, ${email}, ${password}) RETURNING id`;
@@ -73,9 +54,5 @@ export const client = new PrismaClient();
 //     }
 //   }
 //   main();
-
-
 // })
-
 // app.listen(3000);
-

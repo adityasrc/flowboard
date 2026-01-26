@@ -4,5 +4,8 @@
         "rootDir": "./src",
         "outDir": "./dist"
     },
-    "include" : ["src/**/*"] //for declaration merging file
+    "include" : ["src/**/*"], //for declaration merging file
+    "references": [
+    { "path": "../../packages/common" }
+  ]
 }
