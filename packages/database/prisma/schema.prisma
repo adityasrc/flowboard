@@ -1,11 +1,14 @@
 generator client {
   provider = "prisma-client-js"
+  // engineType = "node" optional for v6
   
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
+
 
 model User {
   id        Int       @id @default(autoincrement())
