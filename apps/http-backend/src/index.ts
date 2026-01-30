@@ -1,4 +1,4 @@
-import 'dotenv/config';  // <-- loads .env automatically
+import 'dotenv/config';  //  loads .env
 
 import express from "express";
 const app = express();
@@ -112,13 +112,13 @@ app.post("/room", middleware, async function(req, res){
         })
         return;
     }
-    //db call
-    const userId = req.userId;
+    
+    const userId = req.userId; //we got this user id form middleware
     try{    
         const room = await client.room.create({
             data: {
                 slug: parsedData.data.name,
-                adminId: Number(userId),
+                adminId: Number(userId), //converted string userid to num/int
             }
         })
         res.json({
