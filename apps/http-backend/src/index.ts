@@ -133,6 +133,44 @@ app.post("/room", middleware, async function(req, res){
     }
 })
 
+app.get("/chats/:roomSlug", async function(req, res){
+    
+    //auth ko add karna
+    //rate limiting 
+    
+    try{
+        const roomSlug = req.params.roomSlug;
+        const room = await client.room.findUnique({
+            where:{
+                slug: roomSlug
+            }
+        })
+        if(!room){
+            res.status(404).json({
+                message: "Room not found"
+            })
+            return;
+        }
+        const messages = await client.chat.findMany({
+            where:{
+                roomId: room.id
+            }, 
+            orderBy: {
+                id: "desc"
+            },
+            take: 50
+        })
+        res.json({
+            messages: messages.reverse()
+        })
+    }catch(e){
+        console.log("Room not found");
+        res.status(500).json({
+            messages: []
+        })
+    }
+})
+
 
 app.listen(3001, function(){
     console.log("Server is running at port: 3001");
