@@ -1,8 +1,10 @@
 "use client";
 
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Signup from "./signup/page";
 import { ArrowRight, Layers, Zap, LayoutGrid, Users, Moon, Github } from "lucide-react";
 
 export default function LandingPage() {
@@ -28,8 +30,9 @@ export default function LandingPage() {
             <Link href="/signin" className="text-sm font-medium text-zinc-400 hover:text-white transition hidden sm:block">
               Log in
             </Link>
+
             <Button size="sm" className="bg-white text-black hover:bg-zinc-200 font-semibold">
-              Sign Up
+              Sign up
             </Button>
           </div>
         </div>
