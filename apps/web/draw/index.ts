@@ -1,3 +1,7 @@
+import axios from "axios";
+import { X } from "lucide-react";
+import { HTTPAccessFallbackBoundary } from "next/dist/server/app-render/entry-base";
+
 
 type Shape = {
     type: "Rect"; //hardcoded the types of shapes
@@ -13,17 +17,22 @@ type Shape = {
         radius: number;
     }
 
-export default function initDraw(canvas: HTMLCanvasElement) {
+export default async function initDraw(canvas: HTMLCanvasElement, roomId: string) {
     const ctx = canvas.getContext("2d");
+
+    let shapes : Shape[] = await getExistingShapes(roomId);
+
     if (!ctx) return;
 
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+    // ctx.fillStyle = "black";
+    // ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // rect(x, y, width, height)
     // ctx.strokeRect(10, 20, 150, 100);
 
-    let shapes : Shape[] = [];
+    existingShapes(shapes, canvas, ctx);
 
     let isClicked = false;
     let startX = 0;
@@ -41,7 +50,7 @@ export default function initDraw(canvas: HTMLCanvasElement) {
             // ctx.clearRect(0, 0, canvas.width, canvas.height);
             // ctx.fillStyle = "black";  //background ko black kar dega
             // ctx.fillRect(0, 0, canvas.width, canvas.height);
-            existingShape(shapes, canvas, ctx);
+            existingShapes(shapes, canvas, ctx);
             ctx.strokeStyle = "white";  //boundary will be white
             ctx.strokeRect(startX, startY, width, height);
         }
@@ -61,7 +70,7 @@ export default function initDraw(canvas: HTMLCanvasElement) {
     })
 }
 
-function existingShape(shapes : Shape[], canvas: HTMLCanvasElement, ctx : CanvasRenderingContext2D){
+function existingShapes(shapes : Shape[], canvas: HTMLCanvasElement, ctx : CanvasRenderingContext2D){
     ctx.clearRect(0, 0, canvas.width, canvas.height); //canvas clear karenge
 
     //canvas ko black karenge
@@ -74,4 +83,16 @@ function existingShape(shapes : Shape[], canvas: HTMLCanvasElement, ctx : Canvas
             ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
         }
     });
+}
+
+async function getExistingShapes(roomid: string){
+    const res = await axios.get(`${HTTP_BACKEND}/chats/${roomid}`);
+    const messages = res.data.messages;
+
+    const shapes = messages.map((msg: any) => { //map because it returns a new array
+        const shapeData = JSON.parse(msg.message)
+        return shapeData;
+    })
+
+    return shapes;
 }
