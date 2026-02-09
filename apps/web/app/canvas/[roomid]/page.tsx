@@ -1,26 +1,21 @@
-"use client"
-import initDraw from "@/draw";
-import { useEffect, useRef } from "react";
+import { RoomCanvas } from "@/components/RoomCanvas";
+// import { param } from "framer-motion/client";
 
-export default function Canvas(){
+interface PageProps{
+    params: {
+        roomId: string;
+    }
+}
 
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    //pointer to the canvas
-
-    useEffect(()=>{
-        const canvas = canvasRef.current;
-        //accessing the canvas element
-        if(!canvas) return;
-
-        initDraw(canvas);
-
-
-    }, [canvasRef])
-
+export default async function ({params } : PageProps){
+    const { roomId } = await params;
+    //from next 15, params returns promises
 
     return(
         <div>
-           <canvas ref={canvasRef} width={2000} height={1000}/>
+            <RoomCanvas roomId={roomId}/>
         </div>
     )
+
+
 }
