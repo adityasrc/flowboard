@@ -1,6 +1,5 @@
 import axios from "axios";
-import { X } from "lucide-react";
-import { HTTPAccessFallbackBoundary } from "next/dist/server/app-render/entry-base";
+import { HTTP_BACKEND } from "@/config";
 
 
 type Shape = {
@@ -17,14 +16,22 @@ type Shape = {
         radius: number;
     }
 
-export default async function initDraw(canvas: HTMLCanvasElement, roomId: string) {
+export default async function initDraw(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     const ctx = canvas.getContext("2d");
 
     let shapes : Shape[] = await getExistingShapes(roomId);
 
     if (!ctx) return;
 
+    socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
 
+        if(message.type == "chat"){
+            const parsedData = JSON.parse(message.message);
+            shapes.push(parsedData.shape);
+            existingShapes(shapes, canvas, ctx);
+        }
+    }
 
     // ctx.fillStyle = "black";
     // ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -37,6 +44,8 @@ export default async function initDraw(canvas: HTMLCanvasElement, roomId: string
     let isClicked = false;
     let startX = 0;
     let startY = 0;
+
+
     canvas.addEventListener("mousedown", (e) => {
         isClicked = true;
         startX = e.clientX;
@@ -60,13 +69,22 @@ export default async function initDraw(canvas: HTMLCanvasElement, roomId: string
         isClicked = false;
         const width = e.clientX-startX;
         const height = e.clientY-startY;
-        shapes.push({
+        const shape: Shape = {
             type: "Rect",
             x: startX, 
             y: startY, 
             width: width, 
             height: height
-        });
+        }
+        shapes.push(shape);
+
+        socket.send(JSON.stringify({
+            type: "chat",
+            message: JSON.stringify({
+                shape
+            }),
+            roomId
+        }))
     })
 }
 
@@ -91,7 +109,7 @@ async function getExistingShapes(roomid: string){
 
     const shapes = messages.map((msg: any) => { //map because it returns a new array
         const shapeData = JSON.parse(msg.message)
-        return shapeData;
+        return shapeData.shape;
     })
 
     return shapes;

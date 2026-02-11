@@ -1,31 +1,46 @@
 "use client"
-import initDraw from "@/draw";
-import { useEffect, useRef } from "react";
+import { WS_BACKEND } from "@/config";
+import { useEffect, useState } from "react";
+import { Canvas } from "@/components/Canvas";
 
 interface CanvasProps {
     roomId : string;
 }
 
 export function RoomCanvas({ roomId }: CanvasProps){
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [socket, setSocket] = useState<WebSocket | null>(null);
     //pointer to the canvas
 
     useEffect(()=>{
-        const canvas = canvasRef.current;
-        //accessing the canvas element
-        if(!canvas) return;
-        canvas.width = window.innerWidth; //make canvas dimension  = windwo dimension
-        canvas.height = window.innerHeight;
+        const ws = new WebSocket(`${WS_BACKEND}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTYsImlhdCI6MTc3MDgwNjgxN30.JmdQWHG9kewVw2K62NGs3MaY2nML2y7i7_KmJko077c`);
 
-        initDraw(canvas, roomId);
+        ws.onopen = () => {
+            setSocket(ws);
+            ws.send(JSON.stringify({
+                type: "join_room",
+                roomId: roomId
+            }))
+        }
 
+        return ()=>{
+            ws.close();
+        }
 
     }, [roomId])
+    
+
+    if(!socket){
+        return(
+            <div>
+                Connecting to server.....
+            </div>
+        )
+    }
 
 
     return(
         <div>
-           <canvas ref={canvasRef}/>
+           <Canvas roomId={roomId} socket={socket}/>
         </div>
     )
 }
