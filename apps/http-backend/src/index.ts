@@ -8,8 +8,8 @@ import { middleware } from "./middleware";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { client } from "@repo/db/client";
 import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common";
-
-
+import cors from "cors";
+app.use(cors());
 app.use(express.json());
 
 //signup - for new account(register)
