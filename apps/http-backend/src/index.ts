@@ -158,7 +158,7 @@ app.get("/chats/:roomSlug", async function(req, res){
             orderBy: {
                 id: "desc"
             },
-            take: 50
+            take: 100
         })
         res.json({
             messages: messages.reverse()

@@ -3,3 +3,6 @@
 
 1. My code is in old syntax of prisma and prisma 7 didnt supported that 
 Sol:- I switched back to prisma v6.
+
+complete pencil functionality
+add panning and zooming functionality

@@ -1,1 +1,1 @@
-{"root":["./prisma.config.ts","./dist/client.d.ts","./prisma/seed.ts","./src/client.ts"],"version":"5.9.2"}
+{"root":["./prisma/seed.ts","./src/client.ts"],"version":"5.9.2"}
