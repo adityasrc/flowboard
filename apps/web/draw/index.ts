@@ -11,9 +11,15 @@ type Shape = {
 }
     | {
         type: "Circle";
-        x: number;
-        y: number;
+        centerX: number;
+        centerY: number;
         radius: number;
+    } | {
+        type: "Pencil",
+        startX: number,
+        startY: number,
+        endX: number
+        endY: number
     }
 
 export default async function initDraw(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
@@ -28,7 +34,7 @@ export default async function initDraw(canvas: HTMLCanvasElement, roomId: string
 
         if(message.type == "chat"){
             const parsedData = JSON.parse(message.message);
-            shapes.push(parsedData.shape);
+            shapes.push(parsedData.shape); //shape is stored as text
             existingShapes(shapes, canvas, ctx);
         }
     }
