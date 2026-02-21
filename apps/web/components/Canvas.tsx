@@ -2,7 +2,7 @@
 import { IconButton } from "./IconButton";
 import initDraw from "@/draw";
 import { useEffect, useRef, useState } from "react";
-import { Pencil, Circle, RectangleHorizontalIcon } from "lucide-react";
+import { Pencil, Circle, RectangleHorizontalIcon, Eraser } from "lucide-react";
 import { Game } from "@/draw/Game";
 interface CanvasProps {
   roomId: string;
@@ -35,9 +35,9 @@ export function Canvas({ roomId, socket }: CanvasProps) {
       const g = new Game(canvas, roomId, socket);
       setGame(g);
 
-      return()=>{
+      return () => {
         g.destroy();
-      }
+      };
     }
   }, [roomId, socket]);
 
@@ -87,6 +87,14 @@ function Topbar({
           }}
           activated={selectedTool === "circle"}
           icon={<Circle />}
+        />
+
+        <IconButton
+          onClick={() => {
+            setSelectedTool("eraser");
+          }}
+          activated={selectedTool === "eraser"}
+          icon={<Eraser />}
         />
       </div>
     </div>
