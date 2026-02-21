@@ -129,6 +129,31 @@ app.post("/room", middleware, async function(req, res){
     }
 })
 
+app.get("/rooms", middleware, async function(req, res){
+    const userId = req.userId;
+
+    try{
+        const rooms = await client.room.findMany({
+            where: {
+                adminId: Number(userId)
+            },
+            select: {
+                id: true,
+                slug: true
+            }
+        });
+
+        res.json({
+            rooms: rooms
+        })
+    }catch(e) {
+        res.status(500).json({
+            message: "Error fetching rooms",
+            error: e
+        });
+    }
+})
+
 app.get("/chats/:roomSlug", async function(req, res){
     
     //auth ko add karna

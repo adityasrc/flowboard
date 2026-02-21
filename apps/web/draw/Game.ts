@@ -1,5 +1,6 @@
 import { getExistingShapes } from "./http";
 import { Tool } from "../components/Canvas";
+import rough from "roughjs";
 
 type Shape =
   | {
@@ -8,12 +9,14 @@ type Shape =
       y: number;
       width: number;
       height: number;
+      seed: number
     }
   | {
       type: "Circle";
       centerX: number;
       centerY: number;
       radius: number;
+      seed: number
     }
   | {
       type: "Pencil";
@@ -21,6 +24,7 @@ type Shape =
       startY: number;
       endX: number;
       endY: number;
+      seed: number
     };
 
 export class Game {
@@ -30,6 +34,8 @@ export class Game {
   private roomId: string;
   private socket: WebSocket;
   private isClicked: boolean;
+  private rc: any;
+  private currentSeed = 0;
 
   private startX = 0;
   private startY = 0;
@@ -48,6 +54,7 @@ export class Game {
     this.init();
     this.initHandlers();
     this.initMouseHandler();
+    this.rc = rough.canvas(canvas);
 
     //constructors cant be async
   }
@@ -85,24 +92,26 @@ export class Game {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); //canvas clear karenge
 
     //canvas ko black karenge
-    this.ctx.fillStyle = "black";
+    this.ctx.fillStyle = "#ffffff";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.shapes.forEach((shape) => {
+      // this.ctx.strokeStyle = "black";
       if (shape.type === "Rect") {
-        this.ctx.strokeStyle = "white";
-        this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+        // this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+        this.rc.rectangle(shape.x,shape.y, shape.width, shape.height, {stroke: 'black', seed: shape.seed});
       } else if (shape.type === "Circle") {
-        this.ctx.beginPath();
-        this.ctx.arc(
-          shape.centerX,
-          shape.centerY,
-          Math.abs(shape.radius),
-          0,
-          Math.PI * 2,
-        );
-        this.ctx.stroke();
-        this.ctx.closePath();
+        // this.ctx.beginPath();
+        // this.ctx.arc(
+        //   shape.centerX,
+        //   shape.centerY,
+        //   Math.abs(shape.radius),
+        //   0,
+        //   Math.PI * 2,
+        // );
+        // this.ctx.stroke();
+        // this.ctx.closePath();
+        this.rc.circle(shape.centerX, shape.centerY, Math.abs(shape.radius) * 2, {stroke: 'black', seed: shape.seed});
       }
     });
   }
@@ -111,6 +120,7 @@ export class Game {
     this.isClicked = true;
     this.startX = e.clientX;
     this.startY = e.clientY;
+    this.currentSeed = rough.newSeed();
   }
 
   mouseUpHandler = (e) => {
@@ -127,6 +137,7 @@ export class Game {
         y: this.startY,
         width: width,
         height: height,
+        seed: this.currentSeed
       };
     } else if (selectedTool === "circle") {
       const radius = Math.max(width, height) / 2;
@@ -135,6 +146,7 @@ export class Game {
         centerX: this.startX + radius,
         centerY: this.startY + radius,
         radius: radius,
+        seed: this.currentSeed
       };
     }
     if (!shape) {
@@ -162,18 +174,21 @@ export class Game {
         // ctx.fillStyle = "black";  //background ko black kar dega
         // ctx.fillRect(0, 0, canvas.width, canvas.height);
         this.existingShapes();
-        this.ctx.strokeStyle = "white"; //boundary will be white
+        // this.ctx.strokeStyle = "black"; //boundary will be black
         const selectedTool = this.selectedTool;
         if (selectedTool === "rect") {
-          this.ctx.strokeRect(this.startX, this.startY, width, height);
+          // this.ctx.strokeRect(this.startX, this.startY, width, height);
+          this.rc.rectangle(this.startX, this.startY, width, height, {stroke: 'black', seed: this.currentSeed});
         } else if (selectedTool === "circle") {
           const radius = Math.max(width, height) / 2;
           const centerX = this.startX + radius;
           const centerY = this.startY + radius;
-          this.ctx.beginPath();
-          this.ctx.arc(centerX, centerY, Math.abs(radius), 0, Math.PI * 2);
-          this.ctx.stroke();
-          this.ctx.closePath();
+          // this.ctx.beginPath();
+          // this.ctx.arc(centerX, centerY, Math.abs(radius), 0, Math.PI * 2);
+          // this.ctx.stroke();
+          // this.ctx.closePath();
+          
+          this.rc.circle(centerX, centerY, Math.abs(radius)*2, {stroke: 'black', seed: this.currentSeed});
         }
       }
   }
