@@ -10,6 +10,7 @@ type Shape =
       width: number;
       height: number;
       seed: number;
+      id: string;
     }
   | {
       type: "Circle";
@@ -17,11 +18,13 @@ type Shape =
       centerY: number;
       radius: number;
       seed: number;
+      id: string;
     }
   | {
       type: "Pencil";
       points: [number, number][]; // array of [x, y] (2d array)
       seed: number;
+      id: string;
     };
 
 export class Game {
@@ -36,14 +39,34 @@ export class Game {
   private currentPath: [number, number][] = [];
   private startX = 0;
   private startY = 0;
+  private tolerance = 5;
 
   private selectedTool: Tool = "circle";
-  private getCoordinates(e: MouseEvent){
+  private getCoordinates(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
-    const x = e.clientX-rect.left;
-    const y = e.clientY-rect.top;
-    return {x, y};
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    return { x, y };
   }
+
+  private isPointInShapes(x: number, y: number, shape: Shape): boolean {
+    if (shape.type === "Rect") {
+      const minX = Math.min(shape.x, shape.x + shape.width); //to safeguard reverse drag using min max
+      const maxX = Math.max(shape.x, shape.x + shape.width);
+
+      const minY = Math.min(shape.y, shape.y + shape.height);
+      const maxY = Math.max(shape.y, shape.y + shape.height);
+
+      return (
+        x >= minX - this.tolerance &&
+        x <= maxX + this.tolerance &&
+        y >= minY - this.tolerance &&
+        y <= maxY + this.tolerance
+      );
+    }
+    return false;
+  }
+
   constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -60,7 +83,6 @@ export class Game {
 
     //constructors cant be async
   }
-
 
   destroy() {
     this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
@@ -85,7 +107,18 @@ export class Game {
 
       if (message.type == "chat") {
         const parsedData = JSON.parse(message.message);
-        this.shapes.push(parsedData.shape); //shape is stored as text
+        const incomingShape = parsedData.shape;
+        const shapeExists = this.shapes.find(
+          (shape) => shape.id === incomingShape.id,
+        ); // to prevent double renderign of shapes
+
+        if (!shapeExists) {
+          this.shapes.push(parsedData.shape); //shape is stored as text
+          this.existingShapes();
+        }
+      } else if (message.type == "delete_shape") {
+        const idToDelete = message.id;
+        this.shapes = this.shapes.filter((s) => s.id !== idToDelete);
         this.existingShapes();
       }
     };
@@ -131,7 +164,7 @@ export class Game {
 
   mouseDownHandler = (e: MouseEvent) => {
     this.isClicked = true;
-    const {x, y} = this.getCoordinates(e);
+    const { x, y } = this.getCoordinates(e);
     this.startX = x;
     this.startY = y;
     this.currentSeed = rough.newSeed();
@@ -139,6 +172,26 @@ export class Game {
     if (selectedTool === "pencil") {
       this.currentPath = [];
       this.currentPath = [[x, y]];
+    }
+
+    if (selectedTool === "eraser") {
+      for (let i = this.shapes.length - 1; i >= 0; i--) {
+        const shape = this.shapes[i];
+        if (this.isPointInShapes(x, y, shape)) {
+          this.shapes.splice(i, 1); //splice (index, count(number of element to be removed))
+          this.existingShapes();
+          if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(
+              JSON.stringify({
+                type: "delete_shape", // Naya message type
+                id: shape.id, // Kis id ko mitaana hai
+                roomId: this.roomId,
+              }),
+            );
+          }
+          break;
+        }
+      }
     }
   };
 
@@ -158,6 +211,7 @@ export class Game {
         width: width,
         height: height,
         seed: this.currentSeed,
+        id: crypto.randomUUID(), //uuid matlab universal unique id , its random
       };
     } else if (selectedTool === "circle") {
       const radius = Math.max(width, height) / 2;
@@ -167,12 +221,14 @@ export class Game {
         centerY: this.startY + radius,
         radius: radius,
         seed: this.currentSeed,
+        id: crypto.randomUUID(),
       };
     } else if (selectedTool === "pencil") {
       shape = {
         type: "Pencil",
         points: this.currentPath,
         seed: this.currentSeed,
+        id: crypto.randomUUID(),
       };
     }
     if (!shape) {
@@ -194,7 +250,7 @@ export class Game {
 
   mouseMoveHandler = (e: MouseEvent) => {
     if (this.isClicked) {
-      const {x, y} = this.getCoordinates(e);
+      const { x, y } = this.getCoordinates(e);
       const width = x - this.startX;
       const height = y - this.startY;
       // ctx.clearRect(0, 0, canvas.width, canvas.height);
