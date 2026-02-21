@@ -58,50 +58,46 @@ app.post("/signup", async function(req, res){
 //signin or login - for accessing account(access)
 
 
-app.post("/signin", async function(req, res){
+app.post("/signin", async function(req, res) {
     //zod
     const parsedData = SigninSchema.safeParse(req.body);
-    if(!parsedData.success){
-        res.json({
+    if (!parsedData.success) {
+        return res.status(411).json({ // Corrected status to 411 for input errors
             message: "Incorrect inputs",
             error: parsedData.error    
-        })
-        return;
+        });
     }
+
     const user = await client.user.findFirst({
         where: {
             username: parsedData.data.username,
             // password: parsedData.data.password
         }
-    })
+    });
 
-
-    if(!user){
-        res.status(403).json({
-            message: "Incorrect creds"
-        })
-    }else{
-        const passwordMatch = await bcrypt.compare(parsedData.data.password, user.password );
-        if(passwordMatch){
+    if (!user) {
+        return res.status(403).json({
+            message: "Invalid username or password"
+        });
+    } else {
+        // Bcrypt will handle the comparison safely
+        const passwordMatch = await bcrypt.compare(parsedData.data.password, user.password);
+        
+        if (passwordMatch) {
             const token = jwt.sign({
                 id: user.id
-            },  JWT_SECRET  );
+            }, JWT_SECRET);
 
-            res.json({
+            return res.json({
                 token
-            })
+            });
+        } else {
+            return res.status(403).json({
+                message: "Invalid username or password"
+            });
         }
     }
-
-    
-    // const token = jwt.sign({
-        
-    // }, JWT_SECRET);
-
-    // res.json({
-    //     token
-    // })
-})
+});
 
 app.post("/room", middleware, async function(req, res){
     const parsedData = CreateRoomSchema.safeParse(req.body);
