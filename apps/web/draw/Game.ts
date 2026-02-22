@@ -64,6 +64,30 @@ export class Game {
         y <= maxY + this.tolerance
       );
     }
+    if (shape.type === "Circle") {
+      const distance = Math.sqrt(
+        Math.pow(x - shape.centerX, 2) + Math.pow(y - shape.centerY, 2),
+      );
+      //pythagoras theorem
+      return Math.abs(shape.radius) >= distance;
+    }
+
+    if (shape.type === "Pencil") {
+      for (let i = 0; i < shape.points.length; i++) {
+        const point = shape.points[i];
+        const px = point[0];
+        const py = point[1];
+
+        const base = x - px;
+        const height = y - py;
+
+        const distance = Math.sqrt(base * base + height * height);
+
+        if (distance <= this.tolerance * 3) {
+          return true;
+        }
+      }
+    }
     return false;
   }
 
