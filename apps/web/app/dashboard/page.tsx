@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Layers } from "lucide-react";
+import { Layers, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Card,
@@ -29,6 +30,8 @@ export default function Dashboard() {
   const [isOpen, setIsOpen] = useState(false);
   const [rooms, setRooms] = useState([]);
   const router = useRouter();
+  const [slug, setSlug] = useState("");
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     fetchRooms();
@@ -92,10 +95,49 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            className="text-muted-foreground hover:text-foreground cursor-pointer"
+            className="flex items-center gap-3 px-4 py-2 text-slate-600 font-medium rounded-xl border border-transparent hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-sm transition-all duration-300 group cursor-pointer"
+            onClick={() => {
+              // localStorage.removeItem("token"); //moved it to dialog
+              // router.push("/");
+              setShowLogoutDialog(true);
+            }}
           >
-            Logout
+            <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-slate-200 transition-colors">
+              <LogOut size={18} />
+            </div>
+            <span>Logout</span>
           </Button>
+
+          <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+            <DialogContent className="sm:max-w-md rounded-2xl">
+              <DialogHeader>
+                <DialogTitle>Logout?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to log out of your account? You will
+                  need to sign in again to access your rooms.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex gap-2 sm:justify-end mt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowLogoutDialog(false)}
+                  className="rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    localStorage.removeItem("token");
+                    router.push("/");
+                  }}
+                  className="rounded-xl bg-red-500 hover:bg-red-600 cursor-pointer"
+                >
+                  Logout
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </nav>
 
@@ -109,8 +151,22 @@ export default function Dashboard() {
 
         <div className="flex justify-between items-center mt-10">
           <div className="flex items-center gap-2">
-            <Input className="max-w-xs" placeholder="Room Id..." />
-            <Button type="button" variant="outline" className="cursor-pointer">
+            <Input
+              className="max-w-xs"
+              placeholder="Room Id..."
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() =>
+                router.push(
+                  `/canvas/${slug.trim().toLowerCase().replace(/\s+/g, "-")}`,
+                )
+              }
+            >
               Join Room
             </Button>
           </div>
@@ -146,7 +202,8 @@ export default function Dashboard() {
               </div>
 
               <div className="flex justify-end">
-                <Button className="cursor-pointer"
+                <Button
+                  className="cursor-pointer"
                   type="button"
                   onClick={() => {
                     CreateWorkspace();
@@ -165,14 +222,15 @@ export default function Dashboard() {
 
       <section className="mt-12 max-w-6xl mx-auto p-10">
         {rooms.length === 0 ? (
-        <div className="flex flex-col items-center justify-center mt-10 p-20 border-2 border-dashed border-border rounded-3xl bg-muted/10 text-center">
-          <h3 className="text-2xl font-bold tracking-tight mb-2">
-            No workspaces yet
-          </h3>
-          <p className="text-muted-foreground mb-6">
-            You haven't created any Flowboards. Create one above to get started!
-          </p>
-        </div>
+          <div className="flex flex-col items-center justify-center mt-10 p-20 border-2 border-dashed border-border rounded-3xl bg-muted/10 text-center">
+            <h3 className="text-2xl font-bold tracking-tight mb-2">
+              No workspaces yet
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              You haven't created any Flowboards. Create one above to get
+              started!
+            </p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map((room: any) => (
@@ -181,17 +239,27 @@ export default function Dashboard() {
                   <CardTitle>{room.slug}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="aspect-video bg-muted flex items-center justify-center">
-                    Canvas Preview
+                  <div className="aspect-video bg-muted flex items-center justify-center overflow-hidden">
+                   
+                    <img
+                      src="/canvas-preview.png"
+                      alt="Canvas Preview"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">
                     ID: {room.id}
                   </span>
-                  <Button className="cursor-pointer" onClick={()=>{
-                    router.push(`/canvas/${room.slug}`)
-                  }}>Open Flow</Button>
+                  <Button
+                    className="cursor-pointer"
+                    onClick={() => {
+                      router.push(`/canvas/${room.slug}`);
+                    }}
+                  >
+                    Open Flow
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
