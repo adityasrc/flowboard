@@ -40,6 +40,7 @@ export class Game {
   private startX = 0;
   private startY = 0;
   private tolerance = 5;
+  private redoStack: Shape[];
 
   private selectedTool: Tool = "circle";
   private getCoordinates(e: MouseEvent) {
@@ -104,6 +105,16 @@ export class Game {
     this.initHandlers();
     this.initMouseHandler();
     this.rc = rough.canvas(canvas);
+    this.redoStack = [];
+
+    window.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.key === "z") {
+        this.undo();
+      }
+      if (e.ctrlKey && e.key === "y") {
+        this.redo();
+      }
+    });
 
     //constructors cant be async
   }
@@ -116,7 +127,7 @@ export class Game {
     this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
   }
 
-  setTool(Tool: "rect" | "circle" | "pencil" | "eraser") {
+  setTool(Tool: "rect" | "circle" | "pencil" | "eraser" | "undo" | "redo") {
     this.selectedTool = Tool;
   }
 
@@ -146,6 +157,40 @@ export class Game {
         this.existingShapes();
       }
     };
+  }
+
+  undo() {
+    if (this.shapes.length > 0) {
+      let lastShape = this.shapes.pop()!;
+      this.redoStack.push(lastShape);
+      this.existingShapes();
+
+      this.socket.send(
+        JSON.stringify({
+          type: "delete_shape", // Naya message type
+          id: lastShape.id, // Kis id ko mitaana hai
+          roomId: this.roomId,
+        }),
+      );
+    }
+  }
+
+  redo() {
+    if (this.redoStack.length > 0) {
+      let lastShape = this.redoStack.pop()!;
+      this.shapes.push(lastShape);
+      this.existingShapes();
+
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          message: JSON.stringify({
+            shape: lastShape,
+          }),
+          roomId: this.roomId,
+        }),
+      );
+    }
   }
 
   existingShapes() {
