@@ -1,4 +1,5 @@
 "use client";
+import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Layers, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -84,7 +85,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen p-8 bg-background">
       {/* navbar */}
-      <nav className="flex justify-between items-center p-4 mb-8 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
+      {/* <nav className="flex justify-between items-center p-4 mb-8 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
         <div className="flex items-center gap-2.5 group cursor-pointer">
           <div className="flex items-center justify-center w-9 h-9 bg-primary rounded-xl transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 shadow-sm">
             <Layers className="w-5 h-5 text-primary-foreground" />
@@ -139,7 +140,9 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
         </div>
-      </nav>
+      </nav> */}
+
+      <Header isLoggedIn={true}/>
 
       <main className="p-10 max-w-7xl mx-auto">
         <h1 className="text-4xl font-extrabold tracking-tight">
