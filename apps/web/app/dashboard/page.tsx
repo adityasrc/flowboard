@@ -1,8 +1,14 @@
 "use client";
-import { Header } from "@/components/Header";
+
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import { HTTP_BACKEND } from "@/config";
+
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
-import { Layers, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Card,
@@ -19,11 +24,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { HTTP_BACKEND } from "@/config";
-import { useRouter } from "next/navigation";
+
+// Dummy user
+const currentUser = { name: "Aditya Prakash", email: "aditya@flowboard.com" };
 
 export default function Dashboard() {
   const [workspaceName, setworkspaceName] = useState("");
@@ -32,7 +35,6 @@ export default function Dashboard() {
   const [rooms, setRooms] = useState([]);
   const router = useRouter();
   const [slug, setSlug] = useState("");
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     fetchRooms();
@@ -44,8 +46,6 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      console.log("Token from localStorage:", token);
-
       if (!token) return;
 
       const response = await axios.post(
@@ -57,14 +57,14 @@ export default function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       console.log("Room Created:", response.data);
       setworkspaceName("");
       setIsOpen(false);
+      fetchRooms(); // Naya room create hote hi list refresh ho jayegi
     } catch (e) {
       console.error(e);
-      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -83,79 +83,22 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen p-8 bg-background">
-      {/* navbar */}
-      {/* <nav className="flex justify-between items-center p-4 mb-8 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
-        <div className="flex items-center gap-2.5 group cursor-pointer">
-          <div className="flex items-center justify-center w-9 h-9 bg-primary rounded-xl transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 shadow-sm">
-            <Layers className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold tracking-tighter">Flowboard</span>
-        </div>
+    <div className="min-h-screen bg-white">
+      
+      <DashboardHeader user={currentUser} />
 
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            className="flex items-center gap-3 px-4 py-2 text-slate-600 font-medium rounded-xl border border-transparent hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-sm transition-all duration-300 group cursor-pointer"
-            onClick={() => {
-              // localStorage.removeItem("token"); //moved it to dialog
-              // router.push("/");
-              setShowLogoutDialog(true);
-            }}
-          >
-            <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-slate-200 transition-colors">
-              <LogOut size={18} />
-            </div>
-            <span>Logout</span>
-          </Button>
-
-          <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-            <DialogContent className="sm:max-w-md rounded-2xl">
-              <DialogHeader>
-                <DialogTitle>Logout?</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to log out of your account? You will
-                  need to sign in again to access your rooms.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="flex gap-2 sm:justify-end mt-4">
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowLogoutDialog(false)}
-                  className="rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    localStorage.removeItem("token");
-                    router.push("/");
-                  }}
-                  className="rounded-xl bg-red-500 hover:bg-red-600 cursor-pointer"
-                >
-                  Logout
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </nav> */}
-
-      <Header isLoggedIn={true}/>
-
-      <main className="p-10 max-w-7xl mx-auto">
-        <h1 className="text-4xl font-extrabold tracking-tight">
+      <main className="p-6 md:p-10 max-w-350 mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 antialiased">
           My Workspaces
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-[14px] text-[#666666] mt-1 antialiased">
           Select a Workspace or create a new one.
         </p>
 
-        <div className="flex justify-between items-center mt-10">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-10 gap-4">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Input
-              className="max-w-xs"
+              className="max-w-xs h-9 text-[13px] border-slate-200 focus-visible:ring-slate-300 shadow-sm"
               placeholder="Room Id..."
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
@@ -163,12 +106,13 @@ export default function Dashboard() {
             <Button
               type="button"
               variant="outline"
-              className="cursor-pointer"
+              className="h-9 px-4 text-[13px] font-medium text-slate-600 border-slate-200 hover:text-black cursor-pointer antialiased shadow-sm"
               onClick={() =>
                 router.push(
-                  `/canvas/${slug.trim().toLowerCase().replace(/\s+/g, "-")}`,
+                  `/canvas/${slug.trim().toLowerCase().replace(/\s+/g, "-")}`
                 )
               }
+              disabled={!slug.trim()}
             >
               Join Room
             </Button>
@@ -176,90 +120,98 @@ export default function Dashboard() {
 
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              {/* dialogtrigger khud me ek button tag ki trah kaam karta hai, so custom button ke liye aschild use karna padta hai */}
-              <Button type="button" className="cursor-pointer font-bold">
+              <Button type="button" className="bg-black text-white hover:bg-slate-800 text-[13px] font-medium h-9 px-4 rounded-md shadow-sm cursor-pointer antialiased w-full sm:w-auto">
                 + Create New
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md rounded-xl border-slate-100 shadow-lg">
               <DialogHeader>
-                <DialogTitle>Create Workspace</DialogTitle>
-                <DialogDescription>
-                  Give you new canvas a name to get started.
+                <DialogTitle className="text-lg font-semibold tracking-tight">Create Workspace</DialogTitle>
+                <DialogDescription className="text-[14px] text-[#666666]">
+                  Give your new canvas a name to get started.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-4 py-4">
-                <div className=" grid gap-2">
-                  <Label htmlFor="name">Workspace Name</Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="name" className="text-[13px] font-medium text-slate-700">Workspace Name</Label>
                   <Input
                     id="name"
                     type="text"
-                    placeholder="test-room"
+                    placeholder="e.g. test-room"
                     value={workspaceName}
                     onChange={(e) => {
                       setworkspaceName(e.target.value);
                     }}
+                    className="border-slate-200 focus-visible:ring-slate-300 shadow-sm"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-2">
                 <Button
-                  className="cursor-pointer"
+                  className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-4 shadow-sm cursor-pointer w-full sm:w-auto"
                   type="button"
                   onClick={() => {
                     CreateWorkspace();
                   }}
                   disabled={isLoading || workspaceName.length < 4}
                 >
-                  {" "}
                   {isLoading ? "Creating..." : "Create Workspace"}
                 </Button>
-                {/* type submit submits the input auto while button just triggers onclick */}
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </main>
 
-      <section className="mt-12 max-w-6xl mx-auto p-10">
+      <section className="mt-4 max-w-350 mx-auto p-6 md:px-10">
         {rooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center mt-10 p-20 border-2 border-dashed border-border rounded-3xl bg-muted/10 text-center">
-            <h3 className="text-2xl font-bold tracking-tight mb-2">
+          <div className="flex flex-col items-center justify-center mt-6 p-20 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 text-center">
+            <h3 className="text-xl font-semibold tracking-tight text-slate-900 antialiased mb-2">
               No workspaces yet
             </h3>
-            <p className="text-muted-foreground mb-6">
-              You haven't created any Flowboards. Create one above to get
-              started!
+            <p className="text-[14px] text-[#666666] mb-6 max-w-sm mx-auto antialiased">
+              You haven't created any Flowboards. Create one above to get started!
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {rooms.map((room: any) => (
-              <Card key={room.id} className="hover:shadow-md cursor-pointer">
-                <CardHeader>
-                  <CardTitle>{room.slug}</CardTitle>
+              <Card 
+                key={room.id} 
+                className="hover:shadow-md cursor-pointer border-slate-200 shadow-sm transition-all overflow-hidden group"
+                onClick={() => {
+                  router.push(`/canvas/${room.slug}`);
+                }}
+              >
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="text-[15px] font-semibold text-slate-900 truncate antialiased">{room.slug}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="aspect-video bg-muted flex items-center justify-center overflow-hidden">
-                   
+                <CardContent className="p-4 pt-0">
+                  <div className="aspect-video bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center overflow-hidden relative">
+                    
                     <img
                       src="/canvas-preview.png"
                       alt="Canvas Preview"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'; 
+                      }}
                     />
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-50/50 group-hover:bg-transparent transition-all">
+                       <span className="text-slate-400 text-xs font-medium">Preview</span>
+                    </div>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">
+                <CardFooter className="flex justify-between items-center p-4 pt-0">
+                  <span className="text-[12px] text-[#666666] font-medium antialiased">
                     ID: {room.id}
                   </span>
                   <Button
-                    className="cursor-pointer"
-                    onClick={() => {
-                      router.push(`/canvas/${room.slug}`);
-                    }}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-[12px] text-slate-600 hover:text-black hover:bg-slate-100 cursor-pointer"
                   >
                     Open Flow
                   </Button>
