@@ -13,6 +13,7 @@ import {
   Download,
   Minus,
   MoveUpRight,
+  Diamond,
 } from "lucide-react";
 import { Game } from "@/draw/Game";
 import { useRouter } from "next/navigation";
@@ -39,7 +40,8 @@ export type Tool =
   | "undo"
   | "redo"
   | "line"
-  | "arrow";
+  | "arrow"
+  | "diamond";
 
 export function Canvas({ roomId, socket }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -115,7 +117,14 @@ export function Canvas({ roomId, socket }: CanvasProps) {
   }, [roomId, socket]);
 
   return (
-    <div>
+    <div 
+      className="h-screen w-full overflow-hidden"
+      style={{
+        backgroundColor: "#ffffff", 
+        backgroundImage: "radial-gradient(#e5e7eb 1px, transparent 1px)", //dark gray
+        backgroundSize: "32px 32px"
+      }}
+    >
       <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
@@ -144,7 +153,7 @@ export function Canvas({ roomId, socket }: CanvasProps) {
         </DialogContent>
       </Dialog>
 
-      <canvas ref={canvasRef} />
+      <canvas ref={canvasRef} className="bg-transparent" />
       <Topbar
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
@@ -197,6 +206,11 @@ function Topbar({
           icon={<MoveUpRight size={18} />}
         />
 
+        <IconButton
+          onClick={() => setSelectedTool("diamond")}
+          activated={selectedTool === "diamond"}
+          icon={<Diamond size={18} />}
+        />
         <IconButton
           onClick={() => {
             setSelectedTool("rect");
