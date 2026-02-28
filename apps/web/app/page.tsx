@@ -1,210 +1,197 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { 
-  Zap, Map, Code, MousePointer2, 
-  Pencil, Github, ArrowRight, Type, Minus, Square, Circle, Triangle 
-} from "lucide-react";
-import { LandingHeader } from "@/components/LandingHeader"; // Ensure path is correct
+import { ArrowRight, Github } from "lucide-react";
+import { LandingHeader } from "@/components/LandingHeader";
+import { LandingFooter } from "@/components/LandingFooter";
 
-
-const cursorPaths = {
-  alex: { x: [40, 180, 260, 150, 80, 40], y: [60, 120, 60, 180, 140, 60] },
-  sam: { x: [300, 200, 100, 220, 320, 300], y: [160, 80, 140, 200, 100, 160] },
-};
-
-const WhiteboardMockup = () => {
-  const [activeTool, setActiveTool] = useState("rectangle");
-  const [alexPos, setAlexPos] = useState({ x: 40, y: 60 });
-  const [samPos, setSamPos] = useState({ x: 300, y: 160 });
-
-  useEffect(() => {
-    let alexIdx = 0;
-    let samIdx = 0;
-    const interval = setInterval(() => {
-      alexIdx = (alexIdx + 1) % cursorPaths.alex.x.length;
-      samIdx = (samIdx + 1) % cursorPaths.sam.x.length;
-      setAlexPos({ x: cursorPaths.alex.x[alexIdx], y: cursorPaths.alex.y[alexIdx] });
-      setSamPos({ x: cursorPaths.sam.x[samIdx], y: cursorPaths.sam.y[samIdx] });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+export default function Index() {
+  const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="relative mx-auto w-full max-w-4xl">
-        <div className="absolute -inset-1 bg-gradient-to-r from-blue-100 to-purple-100 rounded-2xl blur-2xl opacity-50"></div>
-        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-2xl overflow-hidden h-[360px] sm:h-[480px]">
-          <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-20">
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-900/95 backdrop-blur-md shadow-2xl border border-gray-700/50">
-              <button 
-                onClick={() => setActiveTool("select")}
-                className={`p-2 rounded-lg transition-all ${activeTool === "select" ? "bg-cyan-500/20 text-cyan-400" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-              >
-                <MousePointer2 size={18} />
-              </button>
-              <div className="w-px h-5 bg-gray-700 mx-1"></div>
-              {[
-                { id: "rectangle", icon: <Square size={18} /> },
-                { id: "circle", icon: <Circle size={18} /> },
-                { id: "diamond", icon: <Triangle size={18} /> },
-                { id: "arrow", icon: <ArrowRight size={18} /> },
-                { id: "line", icon: <Minus size={18} /> },
-                { id: "pencil", icon: <Pencil size={18} /> },
-                { id: "text", icon: <Type size={18} /> },
-              ].map((tool) => (
-                <button
-                  key={tool.id}
-                  onClick={() => setActiveTool(tool.id)}
-                  className={`p-2 rounded-lg transition-all duration-200 ${
-                    activeTool === tool.id
-                      ? "bg-cyan-500/20 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)] ring-1 ring-cyan-500/30"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  {tool.icon}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative w-full h-full bg-white"
-               style={{ backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                <rect x="25%" y="30%" width="20%" height="25%" fill="none" stroke="#3B82F6" strokeWidth="3" strokeDasharray="10 10" rx="2" className="opacity-80">
-                    <animate attributeName="stroke-dashoffset" from="1000" to="0" dur="20s" repeatCount="indefinite" />
-                </rect>
-                <circle cx="60%" cy="45%" r="10%" fill="none" stroke="#8B5CF6" strokeWidth="3" strokeDasharray="5 5" className="opacity-80">
-                     <animate attributeName="stroke-dashoffset" from="500" to="0" dur="30s" repeatCount="indefinite" />
-                </circle>
-            </svg>
-
-            <div className="absolute top-[30%] left-[25%] -translate-x-full -translate-y-full px-2 py-1 bg-blue-500 text-white text-[10px] rounded font-bold shadow-sm z-10">
-              component.tsx
-            </div>
-            
-            <div className="absolute transition-all duration-[2000ms] ease-in-out z-10"
-                 style={{ transform: `translate(${alexPos.x}px, ${alexPos.y}px)` }}>
-              <MousePointer2 className="text-blue-600 fill-blue-600 transform -rotate-12 drop-shadow-md" size={24} />
-              <span className="ml-4 -mt-6 block bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                Alex
-              </span>
-            </div>
-
-            <div className="absolute transition-all duration-[2000ms] ease-in-out z-10"
-                 style={{ transform: `translate(${samPos.x}px, ${samPos.y}px)` }}>
-              <MousePointer2 className="text-purple-600 fill-purple-600 transform -rotate-12 drop-shadow-md" size={24} />
-              <span className="ml-4 -mt-6 block bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                Sam
-              </span>
-            </div>
-          </div>
-        </div>
-    </div>
-  );
-};
-
-const Index = () => {
-  return (
-    <div className="min-h-screen bg-white text-gray-900 selection:bg-blue-100 selection:text-blue-900">
-      
-      <div className="fixed inset-0 pointer-events-none" 
-           style={{
-             backgroundImage: "radial-gradient(circle, #e5e7eb 1px, transparent 1px)",
-             backgroundSize: "24px 24px",
-           }} 
-      />
-
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-100 antialiased font-sans flex flex-col">
       <LandingHeader />
 
-    
-      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
-        <div className="mx-auto max-w-6xl text-center relative z-10">
+      <main className="flex-1">
+        <section className="pt-24 pb-8 md:pt-32 md:pb-12 px-6 max-w-2xl md:max-w-4xl mx-auto text-center flex flex-col items-center">
           
-          <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold text-gray-500 mb-8 shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            Open Source & MIT Licensed
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[13px] font-medium text-slate-600 mb-8">
+            <span className="mr-2">v1.0</span>
+            <div className="w-px h-3 bg-slate-200 mx-2"></div>
+            <span>MIT Licensed Open Source</span>
           </div>
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.15] mb-6">
-            Collaborative Sketching at the <br className="hidden sm:block" />
-            <span className="bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent pb-2">
-              Speed of Thought
-            </span>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-black leading-[1.1] mb-6">
+            Real-time whiteboarding,<br className="hidden md:block" />
+            built on native WebSockets.
           </h1>
 
-          <p className="mt-4 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto mb-10">
-            A low-latency, open-source whiteboard built for developers. <br className="hidden md:block"/>
-            Real-time sync powered by WebSockets and Next.js.
+          <p className="text-[16px] md:text-[18px] text-[#666666] max-w-2xl mx-auto mb-10 leading-relaxed">
+            Engineered to avoid Socket.io overhead using native WebSockets. <br className="hidden md:block"/>
+            Includes a custom Node.js backend with JWT-based authentication.
           </p>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
-            <Link href="/signup" className="px-8 py-4 rounded-full text-base font-bold bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2">
-              Start Drawing Free <ArrowRight size={18} />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto mb-16">
+
+            <Link 
+              href="/dashboard" 
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white hover:bg-slate-800 text-[14px] font-medium h-10 px-6 rounded-md transition-colors"
+            >
+              Start drawing
+              <ArrowRight size={16} />
             </Link>
-            <a href="https://github.com/adityasrc" target="_blank" className="px-8 py-4 rounded-full text-base font-bold bg-white text-gray-900 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-              <Github size={18}/> GitHub
+            
+
+            <a 
+              href="https://github.com/adityasrc/flowboard" 
+              target="_blank" 
+              className="w-full sm:w-auto flex items-center justify-center gap-2 text-[14px] font-medium text-slate-700 bg-white border border-slate-200 hover:text-black hover:bg-slate-50 h-10 px-6 rounded-md transition-colors"
+            >
+              <Github size={16}/>
+              View source
             </a>
           </div>
 
-          <WhiteboardMockup />
-        </div>
-      </section>
-
-    
-      <section className="py-12 border-y border-gray-100 bg-gray-50/50">
-        <div className="container mx-auto px-6 text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-8">Powered by modern tech</p>
-            <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-                {["Next.js", "PostgreSQL", "Prisma", "WebSockets", "Tailwind"].map((tech) => (
-                    <span key={tech} className="text-lg sm:text-xl font-bold text-gray-800 cursor-default">{tech}</span>
-                ))}
+          <div className="w-full max-w-5xl mx-auto mb-8">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm mb-3">
+              <div className="aspect-video md:aspect-[21/9] rounded-lg bg-white border border-slate-100 overflow-hidden flex items-center justify-center relative">
+                {imgError ? (
+                  <p className="text-[13px] text-slate-400 font-medium">Actual App UI Screen</p>
+                ) : (
+                  <img 
+                    src="/dashboard-preview.png" 
+                    alt="Flowboard Dashboard UI" 
+                    className="w-full h-full object-cover"
+                    onError={() => setImgError(true)}
+                  />
+                )}
+              </div>
             </div>
-        </div>
-      </section>
-
-      {/* ─── Features ─── */}
-      <section className="py-24 px-6 bg-white">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">Built for Speed</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-                No bloat. Just the tools you need to get ideas from your brain to the screen.
+            <p className="text-[13px] text-slate-400 font-medium tracking-tight">
+              Actual app UI — no simulated mockups.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { icon: <Zap size={24}/>, color: "text-blue-600", bg: "bg-blue-50", title: "Turbo Performance", desc: "Powered by Turborepo. Loads in milliseconds, even with massive boards." },
-              { icon: <Map size={24}/>, color: "text-purple-600", bg: "bg-purple-50", title: "Infinite Canvas", desc: "Zoom, pan, and scroll endlessly. No boundaries, no limits." },
-              { icon: <Code size={24}/>, color: "text-green-600", bg: "bg-green-50", title: "Open Source", desc: "Fork it. Self-host it. Extend it. The code is yours." }
-            ].map((f, i) => (
-              <div key={i} className="p-8 rounded-2xl border border-gray-100 bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                  <div className={`w-12 h-12 ${f.bg} rounded-xl flex items-center justify-center mb-6 ${f.color} group-hover:scale-110 transition-transform`}>
-                      {f.icon}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{f.title}</h3>
-                  <p className="text-gray-500 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+          <p className="text-[14px] font-medium text-slate-500 tracking-wide mt-2">
+            Built with: Next.js · Node.js · ws · PostgreSQL · Prisma · Tailwind
+          </p>
 
-      {/* ─── Footer ─── */}
-      <footer className="border-t border-gray-100 py-12 bg-white">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2 font-bold text-gray-900">
-                <Pencil size={16} className="text-blue-600" /> Flowboard
+        </section>
+
+        <hr className="border-t border-slate-100 my-16 md:my-24 max-w-3xl mx-auto" />
+
+        <section className="px-6 max-w-2xl mx-auto text-center">
+          <h2 className="text-[18px] font-semibold text-black mb-3 tracking-tight">Why Flowboard?</h2>
+          <p className="text-[16px] text-[#666666] leading-relaxed">
+            Most whiteboards optimize for an endless list of features. 
+            Flowboard optimizes strictly for latency and simplicity. It's a technical demonstration of handling high-frequency state synchronization without relying on heavy abstractions.
+          </p>
+        </section>
+
+        <hr className="border-t border-slate-100 my-16 md:my-24 max-w-3xl mx-auto" />
+
+        <section id="features" className="px-6 max-w-3xl mx-auto scroll-mt-24">
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold tracking-tight text-black mb-2">Architecture Decisions</h2>
+            <p className="text-[15px] text-[#666666]">The engineering behind the canvas.</p>
+          </div>
+
+          <div className="border-l-2 border-slate-100 pl-6 md:pl-8 space-y-12">
+            <div>
+              <h3 className="text-[16px] font-bold text-black mb-2 tracking-tight">Native WebSockets over Socket.io</h3>
+              <p className="text-[15px] text-[#666666] leading-relaxed max-w-2xl">
+                Socket.io includes fallback mechanisms that are unnecessary for modern browsers. Using the native `ws` library allows the server to process stringified JSON directly, minimizing latency during high-frequency drawing.
+              </p>
             </div>
-            <p className="text-sm text-gray-500">© 2026 Flowboard. Apache 2.0 License.</p>
-        </div>
-      </footer>
+
+            <div>
+              <h3 className="text-[16px] font-bold text-black mb-2 tracking-tight">Custom Canvas Interaction Layer</h3>
+              <p className="text-[15px] text-[#666666] leading-relaxed max-w-2xl">
+                Built a custom canvas interaction layer from scratch. Utilized Pythagoras theorem for circle-point collision detection and coordinate mapping for pencil-stroke erasure, avoiding heavy 3rd-party canvas libraries.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-[16px] font-bold text-black mb-2 tracking-tight">Custom Auth & Persistence</h3>
+              <p className="text-[15px] text-[#666666] leading-relaxed max-w-2xl">
+                Implemented strict JWT verification on every WebSocket connection. All canvas shapes are stored persistently in PostgreSQL via Prisma, allowing users to rejoin and fetch existing board states instantly.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <hr className="border-t border-slate-100 my-16 md:my-24 max-w-3xl mx-auto" />
+
+        <section className="px-6 max-w-3xl mx-auto">
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold tracking-tight text-black mb-2">How It Works</h2>
+            <p className="text-[15px] text-[#666666]">The real-time synchronization flow.</p>
+          </div>
+
+          <div className="grid gap-8">
+            <div className="flex gap-4">
+              <div className="text-[13px] font-bold text-slate-400 mt-1">01</div>
+              <div>
+                <h3 className="text-[15px] font-bold text-black mb-1">Client Captures Input</h3>
+                <p className="text-[14px] text-[#666666]">Mouse coordinates and canvas events are batched locally and streamed via WebSockets to prevent overwhelming the server.</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-4">
+              <div className="text-[13px] font-bold text-slate-400 mt-1">02</div>
+              <div>
+                <h3 className="text-[15px] font-bold text-black mb-1">Server Broadcasts Events</h3>
+                <p className="text-[14px] text-[#666666]">The Node.js backend validates incoming payloads against the active room ID and immediately relays updates to connected peers.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="text-[13px] font-bold text-slate-400 mt-1">03</div>
+              <div>
+                <h3 className="text-[15px] font-bold text-black mb-1">Clients Reconcile State</h3>
+                <p className="text-[14px] text-[#666666]">The Canvas updates the state using optimistic rendering, ensuring the drawing feels instantaneous regardless of network latency.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <hr className="border-t border-slate-100 my-16 md:my-24 max-w-3xl mx-auto" />
+
+        <section className="px-6 max-w-3xl mx-auto">
+           <div className="mb-12">
+            <h2 className="text-2xl font-bold tracking-tight text-black mb-2">Roadmap</h2>
+            <p className="text-[15px] text-[#666666]">Future technical improvements.</p>
+          </div>
+          
+          <ul className="space-y-4">
+            <li className="flex items-start gap-3 text-[14px] text-[#666666]">
+              <span className="text-slate-300 mt-1">•</span>
+              <span><strong>Redis-backed room scaling:</strong> Moving in-memory room state (`users[]` array) to Redis pub/sub to support horizontal scaling of the WebSocket server.</span>
+            </li>
+            <li className="flex items-start gap-3 text-[14px] text-[#666666]">
+              <span className="text-slate-300 mt-1">•</span>
+              <span><strong>Message Queue Integration:</strong> Offloading database writes (Prisma `.create()`) to a queue to prevent DB bottlenecks during heavy collaborative drawing sessions.</span>
+            </li>
+          </ul>
+        </section>
+
+        <hr className="border-t border-slate-100 my-16 md:my-24 max-w-3xl mx-auto" />
+
+        <section className="px-6 pb-24 max-w-2xl mx-auto text-center">
+          <h2 className="text-[20px] font-bold tracking-tight text-black mb-4">Ready to test the latency?</h2>
+          <p className="text-[15px] text-[#666666] mb-8">Create a room and experience the real-time sync yourself.</p>
+          <Link 
+            href="/dashboard"
+            className="inline-flex items-center justify-center bg-black text-white hover:bg-slate-800 text-[14px] font-medium h-10 px-8 rounded-md transition-colors"
+          >
+            Open Canvas
+          </Link>
+        </section>
+
+      </main>
+
+      <LandingFooter />
     </div>
   );
-};
-
-export default Index;
+}
