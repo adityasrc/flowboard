@@ -32,36 +32,40 @@ interface UserProps {
   }
 }
 
+const getInitials = (name?: string | null) => {
+  if (!name || name.trim() === "") return "U"
+  const words = name.trim().split(" ").filter(Boolean)
+  if (words.length === 1) return words[0].substring(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
+}
+
 export function DashboardHeader({ user }: UserProps) {
   const router = useRouter()
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
-  const getInitials = (name?: string | null) => {
-    if (!name) return "U"
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase()
-  }
-
   const handleLogout = () => {
+    localStorage.removeItem("token")
     setShowLogoutDialog(false)
     router.push("/")
   }
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-350 mx-auto flex h-14 items-center justify-between px-6">
+      <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto flex h-14 items-center justify-between px-6">
           
           <div className="flex items-center">
-            <Link href="/dashboard" className="flex items-center gap-2 md:gap-3 group">
-              <Layers className="h-5 w-5 text-black transition-transform group-hover:rotate-12" strokeWidth={2.5} />
-              <span className="font-bold text-[18px] md:text-[19px] tracking-tight text-black antialiased">
-                Flowboard
-              </span>
+            <Link href="/dashboard" className="flex items-center gap-2 md:gap-3">
+              <Layers className="h-5 w-5 text-black" strokeWidth={2.5} />
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[18px] md:text-[19px] tracking-tight text-black antialiased">
+                  Flowboard
+                </span>
+                <span className="text-[15px] text-slate-300 font-light hidden sm:inline-block">/</span>
+                <span className="text-[14px] text-slate-500 font-medium hidden sm:inline-block tracking-tight">
+                  Dashboard
+                </span>
+              </div>
             </Link>
           </div>
 
@@ -83,7 +87,7 @@ export function DashboardHeader({ user }: UserProps) {
                       {user?.name || "User"}
                     </p>
                     <p className="text-[12px] leading-none text-[#666666]">
-                      {user?.email || "user@flowboard.com"}
+                      {user?.email || ""}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -122,11 +126,12 @@ export function DashboardHeader({ user }: UserProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg font-semibold tracking-tight">Log out of Flowboard?</AlertDialogTitle>
             <AlertDialogDescription className="text-[14px] text-[#666666]">
-              Are you sure you want to log out? You will need to sign in again to access your boards.
+              Are you sure you want to log out? You will need to sign in again to access your workspaces.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2 sm:space-x-3">
-            <AlertDialogCancel className="text-[13px] font-medium h-9 px-4 cursor-pointer border-slate-200">
+
+            <AlertDialogCancel className="text-[13px] font-medium h-9 px-4 cursor-pointer border-slate-200 hover:bg-slate-50">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
