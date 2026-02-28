@@ -11,6 +11,8 @@ import {
   Redo,
   X,
   Download,
+  Minus,
+  MoveUpRight,
 } from "lucide-react";
 import { Game } from "@/draw/Game";
 import { useRouter } from "next/navigation";
@@ -29,7 +31,15 @@ interface CanvasProps {
   socket: WebSocket;
 }
 
-export type Tool = "rect" | "circle" | "pencil" | "eraser" | "undo" | "redo";
+export type Tool =
+  | "rect"
+  | "circle"
+  | "pencil"
+  | "eraser"
+  | "undo"
+  | "redo"
+  | "line"
+  | "arrow";
 
 export function Canvas({ roomId, socket }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -82,7 +92,7 @@ export function Canvas({ roomId, socket }: CanvasProps) {
 
     const game = new Game(canvas, roomId, socket);
 
-    game.setTool(selectedTool)
+    game.setTool(selectedTool);
 
     gameRef.current = game;
 
@@ -163,14 +173,28 @@ function Topbar({
   onDownload: () => void;
 }) {
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white px-3 py-2 rounded-2xl shadow-md border border-gray-100">
-      <div className="flex gap-2 items-center">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white px-2 py-1.5 rounded-xl shadow-md border border-gray-100">
+      <div className="flex gap-1 items-center">
         <IconButton
           onClick={() => {
             setSelectedTool("pencil");
           }}
           activated={selectedTool === "pencil"}
-          icon={<Pencil />}
+          icon={<Pencil size={18} />}
+        />
+
+        <IconButton
+          onClick={() => {
+            setSelectedTool("line");
+          }}
+          activated={selectedTool === "line"}
+          icon={<Minus size={18} />}
+        />
+
+        <IconButton
+          onClick={() => setSelectedTool("arrow")}
+          activated={selectedTool === "arrow"}
+          icon={<MoveUpRight size={18} />}
         />
 
         <IconButton
@@ -178,7 +202,7 @@ function Topbar({
             setSelectedTool("rect");
           }}
           activated={selectedTool === "rect"}
-          icon={<RectangleHorizontalIcon />}
+          icon={<RectangleHorizontalIcon size={18} />}
         />
 
         <IconButton
@@ -186,7 +210,7 @@ function Topbar({
             setSelectedTool("circle");
           }}
           activated={selectedTool === "circle"}
-          icon={<Circle />}
+          icon={<Circle size={18} />}
         />
 
         <IconButton
@@ -194,23 +218,35 @@ function Topbar({
             setSelectedTool("eraser");
           }}
           activated={selectedTool === "eraser"}
-          icon={<Eraser />}
+          icon={<Eraser size={18} />}
         />
 
-        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+        <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
-        <IconButton onClick={onUndo} activated={false} icon={<Undo />} />
+        <IconButton
+          onClick={onUndo}
+          activated={false}
+          icon={<Undo size={18} />}
+        />
 
-        <IconButton onClick={onRedo} activated={false} icon={<Redo />} />
+        <IconButton
+          onClick={onRedo}
+          activated={false}
+          icon={<Redo size={18} />}
+        />
 
-        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+        <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
-        <IconButton onClick={onLeave} activated={false} icon={<X />} />
+        <IconButton
+          onClick={onLeave}
+          activated={false}
+          icon={<X size={18} />}
+        />
 
         <IconButton
           onClick={onDownload}
           activated={false}
-          icon={<Download size={20} />}
+          icon={<Download size={18} />}
         />
       </div>
     </div>
