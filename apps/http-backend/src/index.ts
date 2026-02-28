@@ -85,7 +85,9 @@ app.post("/signin", async function(req, res) {
         
         if (passwordMatch) {
             const token = jwt.sign({
-                id: user.id
+                id: user.id,
+                name: user.name,
+                email: user.email
             }, JWT_SECRET);
 
             return res.json({
