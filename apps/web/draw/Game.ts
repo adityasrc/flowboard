@@ -25,7 +25,25 @@ type Shape =
       points: [number, number][]; // array of [x, y] (2d array)
       seed: number;
       id: string;
-    };
+    }
+  | {
+      type: "Line";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+      seed: number;
+      id: string;
+    }
+  | {
+      type: "Arrow";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+      seed: number;
+      id: string;
+  }
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -89,9 +107,67 @@ export class Game {
         }
       }
     }
+
+    if (shape.type === "Line" || shape.type === "Arrow") {
+      const A = x - shape.startX;
+      const B = y - shape.startY;
+      const C = shape.endX - shape.startX;
+      const D = shape.endY - shape.startY;
+
+      const dot = A * C + B * D;
+      const lenSq = C * C + D * D;
+      let param = -1;
+
+      if (lenSq !== 0) param = dot / lenSq;
+
+      let xx, yy;
+      if (param < 0) {
+        xx = shape.startX;
+        yy = shape.startY;
+      } else if (param > 1) {
+        xx = shape.endX;
+        yy = shape.endY;
+      } else {
+        xx = shape.startX + param * C;
+        yy = shape.startY + param * D;
+      }
+
+      const dx = x - xx;
+      const dy = y - yy;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      return distance <= this.tolerance;
+    }
     return false;
   }
 
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey && e.key === "z") {
+      this.undo();
+    }
+    if (e.ctrlKey && e.key === "y") {
+      this.redo();
+    }
+  };
+
+  private drawArrow(startX: number, startY: number, endX: number, endY: number, seed: number) {
+    
+    this.rc.line(startX, startY, endX, endY, { stroke: "black", seed: seed });
+
+    //(Teer ka math)
+    const angle = Math.atan2(endY - startY, endX - startX);
+    const headLength = 15; // arrow ke head ka size
+    
+    const p1X = endX - headLength * Math.cos(angle - Math.PI / 6);
+    const p1Y = endY - headLength * Math.sin(angle - Math.PI / 6);
+    
+    const p2X = endX - headLength * Math.cos(angle + Math.PI / 6);
+    const p2Y = endY - headLength * Math.sin(angle + Math.PI / 6);
+
+    
+    this.rc.line(endX, endY, p1X, p1Y, { stroke: "black", seed: seed });
+    this.rc.line(endX, endY, p2X, p2Y, { stroke: "black", seed: seed });
+  }
   constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -107,14 +183,7 @@ export class Game {
     this.rc = rough.canvas(canvas);
     this.redoStack = [];
 
-    window.addEventListener("keydown", (e) => {
-      if (e.ctrlKey && e.key === "z") {
-        this.undo();
-      }
-      if (e.ctrlKey && e.key === "y") {
-        this.redo();
-      }
-    });
+    window.addEventListener("keydown", this.handleKeyDown);
 
     //constructors cant be async
   }
@@ -125,9 +194,13 @@ export class Game {
     this.canvas.removeEventListener("mouseup", this.mouseUpHandler);
 
     this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
+
+    window.removeEventListener("keydown", this.handleKeyDown);
   }
 
-  setTool(Tool: "rect" | "circle" | "pencil" | "eraser" | "undo" | "redo") {
+  setTool(
+    Tool: "rect" | "circle" | "pencil" | "eraser" | "undo" | "redo" | "line" | "arrow",
+  ) {
     this.selectedTool = Tool;
   }
 
@@ -227,6 +300,14 @@ export class Game {
         );
       } else if (shape.type === "Pencil") {
         this.rc.linearPath(shape.points, { stroke: "black", seed: shape.seed });
+      } else if (shape.type === "Line") {
+        this.rc.line(shape.startX, shape.startY, shape.endX, shape.endY, {
+          stroke: "black",
+          seed: shape.seed,
+        });
+      }
+      else if(shape.type === "Arrow"){
+        this.drawArrow(shape.startX, shape.startY, shape.endX, shape.endY, shape.seed);
       }
     });
   }
@@ -258,7 +339,8 @@ export class Game {
               }),
             );
           }
-          break;
+          this.isClicked = false;
+          return;
         }
       }
     }
@@ -299,12 +381,37 @@ export class Game {
         seed: this.currentSeed,
         id: crypto.randomUUID(),
       };
+    } else if (selectedTool === "line") {
+      shape = {
+        type: "Line",
+        startX: this.startX,
+        startY: this.startY,
+        endX: x,
+        endY: y,
+        seed: this.currentSeed,
+        id: crypto.randomUUID(),
+      };
     }
+    else if (selectedTool === "arrow") {
+      shape = {
+      type: "Arrow",
+      startX: this.startX,
+      startY: this.startY,
+      endX: x,
+      endY: y,
+      seed: this.currentSeed,
+      id: crypto.randomUUID(),
+      };
+    }
+
+
     if (!shape) {
       return;
     }
 
     this.shapes.push(shape);
+
+    this.redoStack = []; //naya shape bante hi redo stack khali karna hai.
 
     this.socket.send(
       JSON.stringify({
@@ -353,7 +460,16 @@ export class Game {
           stroke: "black",
           seed: this.currentSeed,
         });
+      } else if (selectedTool === "line") {
+        this.rc.line(this.startX, this.startY, x, y, {
+          stroke: "black",
+          seed: this.currentSeed,
+        });
       }
+      else if (selectedTool === "arrow") {
+        this.drawArrow(this.startX, this.startY, x, y, this.currentSeed);
+      }
+      
     }
   };
   initMouseHandler() {
