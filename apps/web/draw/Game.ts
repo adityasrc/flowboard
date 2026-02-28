@@ -43,7 +43,16 @@ type Shape =
       endY: number;
       seed: number;
       id: string;
-  }
+    }
+  | {
+      type: "Diamond";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      seed: number;
+      id: string;
+    };
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -59,6 +68,7 @@ export class Game {
   private startY = 0;
   private tolerance = 5;
   private redoStack: Shape[];
+  private rafId: number | null = null; //requestanimationframe id
 
   private selectedTool: Tool = "circle";
   private getCoordinates(e: MouseEvent) {
@@ -69,7 +79,7 @@ export class Game {
   }
 
   private isPointInShapes(x: number, y: number, shape: Shape): boolean {
-    if (shape.type === "Rect") {
+    if (shape.type === "Rect" || shape.type === "Diamond") {
       const minX = Math.min(shape.x, shape.x + shape.width); //to safeguard reverse drag using min max
       const maxX = Math.max(shape.x, shape.x + shape.width);
 
@@ -136,7 +146,19 @@ export class Game {
       const dy = y - yy;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      return distance <= this.tolerance;
+      if( distance <= this.tolerance){
+        return true; // line ke liye
+      }
+
+      if(shape.type === "Arrow"){
+        const distanceToTip = Math.sqrt(
+          Math.pow(x-shape.endX, 2) + Math.pow(y - shape.endY, 2)
+        );
+
+        if(distanceToTip <= 15){
+          return true;
+        }
+      }
     }
     return false;
   }
@@ -150,21 +172,25 @@ export class Game {
     }
   };
 
-  private drawArrow(startX: number, startY: number, endX: number, endY: number, seed: number) {
-    
+  private drawArrow(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    seed: number,
+  ) {
     this.rc.line(startX, startY, endX, endY, { stroke: "black", seed: seed });
 
     //(Teer ka math)
     const angle = Math.atan2(endY - startY, endX - startX);
     const headLength = 15; // arrow ke head ka size
-    
+
     const p1X = endX - headLength * Math.cos(angle - Math.PI / 6);
     const p1Y = endY - headLength * Math.sin(angle - Math.PI / 6);
-    
+
     const p2X = endX - headLength * Math.cos(angle + Math.PI / 6);
     const p2Y = endY - headLength * Math.sin(angle + Math.PI / 6);
 
-    
     this.rc.line(endX, endY, p1X, p1Y, { stroke: "black", seed: seed });
     this.rc.line(endX, endY, p2X, p2Y, { stroke: "black", seed: seed });
   }
@@ -199,7 +225,16 @@ export class Game {
   }
 
   setTool(
-    Tool: "rect" | "circle" | "pencil" | "eraser" | "undo" | "redo" | "line" | "arrow",
+    Tool:
+      | "rect"
+      | "circle"
+      | "pencil"
+      | "eraser"
+      | "undo"
+      | "redo"
+      | "line"
+      | "arrow"
+      | "diamond",
   ) {
     this.selectedTool = Tool;
   }
@@ -270,8 +305,8 @@ export class Game {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); //canvas clear karenge
 
     //canvas ko black karenge
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // this.ctx.fillStyle = "#ffffff";
+    // this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.shapes.forEach((shape) => {
       // this.ctx.strokeStyle = "black";
@@ -305,9 +340,29 @@ export class Game {
           stroke: "black",
           seed: shape.seed,
         });
+      } else if (shape.type === "Arrow") {
+        this.drawArrow(
+          shape.startX,
+          shape.startY,
+          shape.endX,
+          shape.endY,
+          shape.seed,
+        );
       }
-      else if(shape.type === "Arrow"){
-        this.drawArrow(shape.startX, shape.startY, shape.endX, shape.endY, shape.seed);
+      else if(shape.type === "Diamond"){
+        const midX = shape.x + shape.width / 2;
+        const midY = shape.y + shape.height / 2;
+
+        this.rc.polygon([
+          [midX, shape.y],
+          [shape.x + shape.width, midY],
+          [midX, shape.y + shape.height],
+          [shape.x, midY]
+        ], { 
+            stroke: "black", 
+            seed: shape.seed, // BUG 1 FIXED HERE
+        });
+
       }
     });
   }
@@ -348,9 +403,16 @@ export class Game {
 
   mouseUpHandler = (e: MouseEvent) => {
     this.isClicked = false;
+    if(this.rafId){
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+
     const { x, y } = this.getCoordinates(e);
     const width = x - this.startX;
     const height = y - this.startY;
+
+    
 
     const selectedTool = this.selectedTool;
     let shape: Shape | null = null;
@@ -365,11 +427,17 @@ export class Game {
         id: crypto.randomUUID(), //uuid matlab universal unique id , its random
       };
     } else if (selectedTool === "circle") {
-      const radius = Math.max(width, height) / 2;
+      // BUG 2 FIXED HERE
+      const radiusX = width / 2;
+      const radiusY = height / 2;
+      const centerX = this.startX + radiusX;
+      const centerY = this.startY + radiusY;
+      const radius = Math.max(Math.abs(radiusX), Math.abs(radiusY));
+
       shape = {
         type: "Circle",
-        centerX: this.startX + radius,
-        centerY: this.startY + radius,
+        centerX: centerX,
+        centerY: centerY,
         radius: radius,
         seed: this.currentSeed,
         id: crypto.randomUUID(),
@@ -391,19 +459,27 @@ export class Game {
         seed: this.currentSeed,
         id: crypto.randomUUID(),
       };
-    }
-    else if (selectedTool === "arrow") {
+    } else if (selectedTool === "arrow") {
       shape = {
-      type: "Arrow",
-      startX: this.startX,
-      startY: this.startY,
-      endX: x,
-      endY: y,
-      seed: this.currentSeed,
-      id: crypto.randomUUID(),
+        type: "Arrow",
+        startX: this.startX,
+        startY: this.startY,
+        endX: x,
+        endY: y,
+        seed: this.currentSeed,
+        id: crypto.randomUUID(),
+      };
+    } else if (selectedTool === "diamond") {
+      shape = {
+        type: "Diamond",
+        x: this.startX,
+        y: this.startY,
+        width: x - this.startX,
+        height: y - this.startY,
+        seed: this.currentSeed,
+        id: crypto.randomUUID(),
       };
     }
-
 
     if (!shape) {
       return;
@@ -412,6 +488,8 @@ export class Game {
     this.shapes.push(shape);
 
     this.redoStack = []; //naya shape bante hi redo stack khali karna hai.
+    
+    this.existingShapes(); // BUG 3 FIXED HERE
 
     this.socket.send(
       JSON.stringify({
@@ -426,50 +504,81 @@ export class Game {
 
   mouseMoveHandler = (e: MouseEvent) => {
     if (this.isClicked) {
-      const { x, y } = this.getCoordinates(e);
-      const width = x - this.startX;
-      const height = y - this.startY;
-      // ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // ctx.fillStyle = "black";  //background ko black kar dega
-      // ctx.fillRect(0, 0, canvas.width, canvas.height);
-      this.existingShapes();
-      // this.ctx.strokeStyle = "black"; //boundary will be black
-      const selectedTool = this.selectedTool;
-      if (selectedTool === "rect") {
-        // this.ctx.strokeRect(this.startX, this.startY, width, height);
-        this.rc.rectangle(this.startX, this.startY, width, height, {
-          stroke: "black",
-          seed: this.currentSeed,
-        });
-      } else if (selectedTool === "circle") {
-        const radius = Math.max(width, height) / 2;
-        const centerX = this.startX + radius;
-        const centerY = this.startY + radius;
-        // this.ctx.beginPath();
-        // this.ctx.arc(centerX, centerY, Math.abs(radius), 0, Math.PI * 2);
-        // this.ctx.stroke();
-        // this.ctx.closePath();
+      if (this.selectedTool === "eraser") return;
 
-        this.rc.circle(centerX, centerY, Math.abs(radius) * 2, {
-          stroke: "black",
-          seed: this.currentSeed,
-        });
-      } else if (selectedTool === "pencil") {
+      const { x, y } = this.getCoordinates(e);
+
+      // pencil ke points miss na ho isliye isko pehle hi array me daal denge
+      if (this.selectedTool === "pencil") {
         this.currentPath.push([x, y]);
-        this.rc.linearPath(this.currentPath, {
-          stroke: "black",
-          seed: this.currentSeed,
-        });
-      } else if (selectedTool === "line") {
-        this.rc.line(this.startX, this.startY, x, y, {
-          stroke: "black",
-          seed: this.currentSeed,
-        });
       }
-      else if (selectedTool === "arrow") {
-        this.drawArrow(this.startX, this.startY, x, y, this.currentSeed);
+
+      // agar purana frame pending hai toh usko cancel karenge vibration rokne ke liye
+      if (this.rafId) {
+        cancelAnimationFrame(this.rafId);
       }
-      
+
+      // naya frame schedule karenge browser sync ke sath
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        const width = x - this.startX;
+        const height = y - this.startY;
+        // ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // ctx.fillStyle = "black";  //background ko black kar dega
+        // ctx.fillRect(0, 0, canvas.width, canvas.height);
+        this.existingShapes();
+        // this.ctx.strokeStyle = "black"; //boundary will be black
+        const selectedTool = this.selectedTool;
+        if (selectedTool === "rect") {
+          // this.ctx.strokeRect(this.startX, this.startY, width, height);
+          this.rc.rectangle(this.startX, this.startY, width, height, {
+            stroke: "black",
+            seed: this.currentSeed,
+          });
+        } else if (selectedTool === "circle") {
+          // BUG 2 FIXED HERE
+          const radiusX = width / 2;
+          const radiusY = height / 2;
+          const centerX = this.startX + radiusX;
+          const centerY = this.startY + radiusY;
+          const radius = Math.max(Math.abs(radiusX), Math.abs(radiusY));
+
+          // this.ctx.beginPath();
+          // this.ctx.arc(centerX, centerY, Math.abs(radius), 0, Math.PI * 2);
+          // this.ctx.stroke();
+          // this.ctx.closePath();
+
+          this.rc.circle(centerX, centerY, radius * 2, {
+            stroke: "black",
+            seed: this.currentSeed,
+          });
+        } else if (selectedTool === "pencil") {
+          // currentPath me points upar push ho chuke hai, bas draw karna hai
+          this.rc.linearPath(this.currentPath, {
+            stroke: "black",
+            seed: this.currentSeed,
+          });
+        } else if (selectedTool === "line") {
+          this.rc.line(this.startX, this.startY, x, y, {
+            stroke: "black",
+            seed: this.currentSeed,
+          });
+        } else if (selectedTool === "arrow") {
+          this.drawArrow(this.startX, this.startY, x, y, this.currentSeed);
+        } else if (selectedTool === "diamond") {
+          const midX = this.startX + width / 2;
+          const midY = this.startY + height / 2;
+
+          this.rc.polygon([
+            [midX, this.startY],
+            [this.startX + width, midY],
+            [midX, this.startY + height],
+            [this.startX, midY],
+          ], {
+            stroke: "black", seed: this.currentSeed,
+          });
+        }
+      });
     }
   };
   initMouseHandler() {
