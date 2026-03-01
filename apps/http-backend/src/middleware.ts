@@ -8,23 +8,23 @@ export function middleware(req: Request, res: Response, next: NextFunction) {
 
   const token = authHeader.split(" ")[1] ?? "";
   if (!token) {
-    return res.status(403).json({ message: "Token missing" });
+    return res.status(401).json({ message: "Token missing" });
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload; //jwt.verify only takes string as first input
     //Jwtpayload is type that defines structure of token
-    if (decoded) {
+    if (decoded && decoded.id) {
       //used declaration merging here
       req.userId = decoded.id;
       next();
     } else {
-      res.status(403).json({
+      res.status(401).json({
         message: "You are unauthorized",
       });
     }
   } catch (e) {
-    console.log(e);
-    res.status(403).json({
+    console.log("JWT Verification Error:", e);
+    return res.status(403).json({
       message: "Unauthorized or Invalid token",
     });
   }

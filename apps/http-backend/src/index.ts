@@ -2,6 +2,7 @@ import 'dotenv/config';  //  loads .env
 
 import express from "express";
 const app = express();
+const PORT = process.env.PORT || 3001;
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { middleware } from "./middleware";
@@ -34,7 +35,7 @@ app.post("/signup", async function(req, res){
         return;
     }
     try{
-        const hashedPassword = await bcrypt.hash(parsedData.data.password, 15);
+        const hashedPassword = await bcrypt.hash(parsedData.data.password, 10);
         const user = await client.user.create({
             data: {
                 username: parsedData.data.username,
@@ -47,8 +48,8 @@ app.post("/signup", async function(req, res){
         res.json({
             userId : user.id 
         })
-    }catch(e){
-        res.status(411).json({
+    }catch(e){ 
+        res.status(409).json({ //409 matlab conflict
             message: "User already exists with this username"
         })
     }
@@ -62,7 +63,7 @@ app.post("/signin", async function(req, res) {
     //zod
     const parsedData = SigninSchema.safeParse(req.body);
     if (!parsedData.success) {
-        return res.status(411).json({ // Corrected status to 411 for input errors
+        return res.status(400).json({ // 400 matlab bad request
             message: "Incorrect inputs",
             error: parsedData.error    
         });
@@ -124,10 +125,11 @@ app.post("/room", middleware, async function(req, res){
         })
     }catch(e){
         // console.log("The real error is here: ", e);
+        console.error(e);
         res.status(411).json({
             message: "Room already exist with this name.",
-            actualError: e
         })
+        console.error(e);
     }
 })
 
@@ -156,10 +158,10 @@ app.get("/rooms", middleware, async function(req, res){
     }
 })
 
-app.get("/chats/:roomSlug", async function(req, res){
+app.get("/chats/:roomSlug", middleware, async function(req, res){
     
-    //auth ko add karna
-    //rate limiting 
+    //auth ko add karna hai
+    //rate limiting  ?
     
     try{
         const roomSlug = req.params.roomSlug;
@@ -195,7 +197,6 @@ app.get("/chats/:roomSlug", async function(req, res){
 })
 
 
-app.listen(3001, function(){
-    console.log("Server is running at port: 3001");
-})
-
+app.listen(PORT, () => {
+    console.log(`HTTP Server is running on port ${PORT}`);
+});

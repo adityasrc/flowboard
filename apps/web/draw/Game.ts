@@ -360,7 +360,7 @@ export class Game {
           [shape.x, midY]
         ], { 
             stroke: "black", 
-            seed: shape.seed, // BUG 1 FIXED HERE
+            seed: shape.seed, 
         });
 
       }

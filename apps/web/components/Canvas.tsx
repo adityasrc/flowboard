@@ -1,6 +1,5 @@
 "use client";
 import { IconButton } from "./IconButton";
-import initDraw from "@/draw";
 import { useEffect, useRef, useState } from "react";
 import {
   Pencil,
@@ -117,35 +116,37 @@ export function Canvas({ roomId, socket }: CanvasProps) {
   }, [roomId, socket]);
 
   return (
-    <div 
+    <div
       className="h-screen w-full overflow-hidden"
       style={{
-        backgroundColor: "#ffffff", 
+        backgroundColor: "#ffffff",
         backgroundImage: "radial-gradient(#e5e7eb 1px, transparent 1px)", //dark gray
-        backgroundSize: "32px 32px"
+        backgroundSize: "32px 32px",
       }}
     >
       <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-md rounded-xl border-slate-100 shadow-lg">
           <DialogHeader>
-            <DialogTitle>Leave Room?</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg font-semibold tracking-tight">
+              Leave Room?
+            </DialogTitle>
+            <DialogDescription className="text-[14px] text-[#666666] mt-1.5">
               Are you sure you want to leave? Make sure you have saved your work
               before exiting.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:justify-end">
+          <DialogFooter className="mt-2 sm:space-x-3">
             <button
               onClick={() => setShowLeaveDialog(false)}
-              className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold transition-all cursor-pointer"
+              className="inline-flex items-center justify-center border border-slate-200 bg-transparent hover:bg-slate-50 text-slate-900 text-[13px] font-medium h-9 px-4 rounded-md cursor-pointer transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => {
-                router.push("/dashboard"); // Redirecting to dashboard
+                router.push("/dashboard");
               }}
-              className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all cursor-pointer"
+              className="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white text-[13px] font-medium h-9 px-4 rounded-md shadow-sm cursor-pointer transition-colors"
             >
               Leave
             </button>

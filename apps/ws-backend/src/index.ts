@@ -3,9 +3,11 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { client } from "@repo/db/client";
 
-const wss = new WebSocketServer({ port: 8081 });
+const port = process.env.PORT ? Number(process.env.PORT) : 8081;
 
-console.log("Ws Server started on 8081");
+const wss = new WebSocketServer({ port });
+
+// console.log("Ws Server started on 8081");
 
 interface User {
   ws: WebSocket;
@@ -16,21 +18,21 @@ interface User {
 const users: User[] = [];
 
 function checkUser(token: string): string | null {
-  console.log("1. Checking token:", token); // Is the token arriving?
+  // console.log("1. Checking token:", token); // Is the token arriving?
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    console.log("2. Decoded Token:", decoded); // What is inside?
+    // console.log("2. Decoded Token:", decoded); // What is inside?
 
     if (!decoded || !decoded.id) {
       console.log("3. Failed: ID is missing in token");
       return null;
     }
 
-    console.log("4. Success! User ID:", decoded.id);
-    return decoded.id;
+    // console.log("4. Success! User ID:", decoded.id);
+    return String(decoded.id);
   } catch (e) {
-    console.log("3. Failed: Verify crashed. Error:", e);
+    // console.log("3. Failed: Verify crashed. Error:", e);
     return null;
   }
 }
@@ -58,6 +60,13 @@ wss.on("connection", function connection(ws, request) {
     ws,
   });
 
+  ws.on("close", ()=>{
+    const index = users.findIndex((user) => user.ws === ws);
+    if(index != -1){
+      users.splice(index, 1)
+    }
+  })
+
   ws.on("message", async function message(data) {
     try {
       let parsedData;
@@ -79,9 +88,9 @@ wss.on("connection", function connection(ws, request) {
         if (!user) {
           return;
         }
-        // 2. Fix: Logic was inverted! We want to KEEP rooms that are NOT the one we left
-        user.rooms = user.rooms.filter((x) => x !== parsedData.room);
-        console.log("Left room:", parsedData.room);
+        //Logic was inverted! We want to KEEP rooms that are NOT the one we left
+        user.rooms = user.rooms.filter((x) => x !== parsedData.roomId);
+        console.log("Left room:", parsedData.roomId);
       }
 
       if (parsedData.type === "chat") {
@@ -133,8 +142,14 @@ wss.on("connection", function connection(ws, request) {
         const shapeId = parsedData.id;
 
         try {
+          const room = await client.room.findUnique({
+            where: {slug: roomSlug}
+          });
+          if(!room) return;
+
           await client.chat.deleteMany({
             where: {
+              roomId: room.id,
               message: {
                 contains: shapeId,
               },
