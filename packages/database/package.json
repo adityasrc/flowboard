@@ -1,14 +1,27 @@
 {
   "name": "@repo/db",
   "version": "1.0.0",
+  "description": "",
+  "main": "./dist/client.js",
+  "types": "./src/client.ts", 
+  "exports": {
+    "./client": {
+      "types": "./src/client.ts", 
+      "default": "./dist/client.js"
+    }
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b --force"
+  },
   "dependencies": {
     "dotenv": "^17.2.3",
     "pg": "^8.16.3",
-    "@prisma/client": "6.19.2" 
+    "@prisma/client": "6.19.2"
   },
   "devDependencies": {
-    "prisma": "6.19.2",
     "@repo/typescript-config": "workspace:*",
-    "@types/pg": "^8.16.0"
+    "@types/pg": "^8.16.0",
+    "prisma": "6.19.2"
   }
 }
