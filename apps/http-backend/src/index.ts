@@ -113,10 +113,17 @@ app.post("/room", middleware, async function(req, res){
     }
     
     const userId = req.userId; //we got this user id form middleware
+
+    const slug = parsedData.data.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-');
+
     try{    
         const room = await client.room.create({
             data: {
-                slug: parsedData.data.name,
+                slug: slug,
                 adminId: Number(userId), //converted string userid to num/int
             }
         })

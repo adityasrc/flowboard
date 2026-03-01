@@ -3,19 +3,19 @@ import { RoomCanvas } from "@/components/RoomCanvas";
 
 interface PageProps{
     params: Promise<{ //nextjs  15 me prarams promise hota hai
-        roomId: string;
+        roomid: string;
     }>
 }
 
 export default async function ({params } : PageProps){
-    const { roomId } = await params;
+    const { roomid } = await params;
     //from next 15, params returns promises
 
-    console.log("Server received Room ID:", roomId);
+    console.log("Server received Room ID:", roomid);
 
     return(
         <div>
-            <RoomCanvas roomId={roomId}/>
+            <RoomCanvas roomId={roomid}/>
         </div>
     )
 
