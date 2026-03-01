@@ -1,90 +1,69 @@
 🎨 Flowboard
-A High-Performance, Real-Time Collaborative Whiteboard
+Flowboard is a minimal, fast, real-time collaborative whiteboard. No bloated third-party canvas libraries—just pure HTML5 Canvas, WebSockets, and a lot of math. Inspired by the clean aesthetics of Vercel and Linear, it's built to be fast, responsive, and persistent.
 
-Flowboard is a minimalist, production-ready drawing tool built for seamless real-time collaboration. Inspired by the clean aesthetics of Vercel and Linear, it trades bloated third-party canvas engines for a custom-built, highly optimized HTML5 Canvas architecture powered by native WebSockets.
+🚀 Why I Built This
+Honestly, I didn't just want to build another drawing app. I built Flowboard because I wanted to understand the hard parts of web development: high-frequency state synchronization and raw canvas manipulation.
 
+Instead of plugging in a heavy pre-built engine, I built this from scratch to figure out:
 
-🚀 The Motivation (Why I Built This)
-I built Flowboard to conquer one of the most challenging domains in web development: Real-Time Canvas Manipulation & State Synchronization.
+Vector Math: How to calculate exact distances between a mouse click and a drawn line.
 
-Building a whiteboard isn't just about drawing lines; it's an exercise in complex mathematics, memory management, and network optimization. I wanted to build a tool from scratch to master:
+Render Cycles: How to drop React's default re-renders and use requestAnimationFrame for a butter-smooth 60fps experience.
 
-Mathematical Hit-Detection: Using vector projection to calculate distances between user clicks and drawn line segments.
+Optimistic UI: How to hide network latency by drawing locally first, then syncing globally without causing duplicate "ghost" renders.
 
-Render Optimization: Decoupling mouse events from browser paints using requestAnimationFrame to achieve a butter-smooth 60fps drawing experience.
+✨ What's Inside?
+Zero-Lag Sync: Native ws WebSockets to broadcast strokes in sub-milliseconds.
 
-State Reconciliation: Handling WebSocket latency by implementing optimistic UI rendering—drawing locally first, then syncing globally.
+Hand-Drawn Vibe: Integrated rough.js so shapes don't look boring and rigid.
 
-✨ Key Features
-Zero-Lag Collaboration: Native ws WebSocket implementation ensures sub-millisecond stroke broadcasting to all users in a room.
+Math-Based Eraser: It doesn't just wipe pixels. The eraser calculates if your cursor intersects with a shape's mathematical bounds (using Pythagorean theorem for circles, and Dot Products for lines).
 
-Hand-Drawn Aesthetic: Integrated with rough.js to give shapes and paths a natural, sketchy feel.
+Persistent Sessions: Every stroke is serialized and saved in a PostgreSQL DB via Prisma. Refresh the page, and your board is exactly how you left it.
 
-Advanced Hit-Detection: Custom Eraser logic that uses bounding boxes for shapes and Euclidean distance/Vector math for straight lines and arrows.
+JWT Protected: Secure, isolated rooms for your team.
 
-Vercel-Inspired Dashboard: A hyper-minimalist, high-contrast dashboard with JWT-based protected routes and session persistence.
+🛠️ The Stack
+Frontend: Next.js 14, React, Tailwind CSS, Shadcn UI, HTML5 Canvas API
 
-Persistent Rooms: All strokes are serialized and securely stored in a PostgreSQL database via Prisma, meaning you never lose your work on refresh.
+Backend: Node.js, Express, Native WebSockets (ws)
 
-🛠️ Tech Stack
-Frontend:
+Database: PostgreSQL, Prisma ORM
 
-Next.js 14 (App Router)
+🧠 The Technical Flex (Problems I Solved)
+Killing the "Canvas Jitter": If you drag a shape backwards (right-to-left), the width/height becomes negative and the canvas engine freaks out, causing the shape to vibrate. I fixed this by writing a custom normalizer using Math.min and Math.abs to ensure coordinates are always strictly positive, no matter how chaotic the mouse drag is.
 
-React (Hooks, Context, Ref architecture)
+Unblocking the Main Thread: Throttling high-frequency mousemove events using cancelAnimationFrame and requestAnimationFrame to keep the UI from freezing during intense drawing sessions.
 
-Tailwind CSS & Shadcn UI (Minimalist design system)
+Echo Cancellation: When you draw, the shape renders instantly on your screen and fires to the server. But when the server broadcasts that same shape back to the room, your client needs to know to ignore it. I implemented UUID-based deduplication to stop double-renders.
 
-HTML5 Canvas API & Rough.js
-
-Backend:
-
-Node.js & Express
-
-Native WebSockets (ws)
-
-PostgreSQL (Database)
-
-Prisma (ORM)
-
-JWT (Authentication)
-
-🧠 Engineering Highlights (The Technical Flex)
-Solving the "Canvas Jitter": Dragging shapes across a canvas often causes visual vibration due to negative width/height coordinates. Flowboard implements a strictly normalized bounding-box algorithm (Math.min / Math.abs) to ensure mathematically perfect renders regardless of drag direction.
-
-Optimized Render Loop: Preventing UI thread blocking by throttling high-frequency mousemove events through cancelAnimationFrame and requestAnimationFrame.
-
-Precision Eraser Engine: Instead of simply clearing pixels, the eraser mathematically checks if the pointer's coordinates intersect with the mathematical definition of a shape (e.g., using the Pythagorean theorem for circles, and Dot Products for line projections).
-
-Double-Render Prevention: Implemented strict WebSocket event deduplication. When a user draws, the shape is pushed to the local array and the server simultaneously. The incoming broadcast is filtered via unique UUIDs to prevent "ghost" shapes.
-
-💻 Running Locally
-1. Clone the repository
+💻 Run it Locally
+1. Clone the repo
 
 Bash
-git clone https://github.com/yourusername/flowboard.git
+git clone https://github.com/adityasrc/flowboard.git
 cd flowboard
-2. Setup the Backend
+2. Fire up the Backend
 
 Bash
 cd backend
 npm install
-# Set your DATABASE_URL and JWT_SECRET in .env
+# Add your DATABASE_URL and JWT_SECRET to .env
 npx prisma generate
 npx prisma db push
 npm run dev
-3. Setup the Frontend
+3. Fire up the Frontend
 
 Bash
 cd frontend
 npm install
-# Set NEXT_PUBLIC_HTTP_BACKEND and NEXT_PUBLIC_WS_BACKEND in .env.local
+# Add NEXT_PUBLIC_HTTP_BACKEND and NEXT_PUBLIC_WS_BACKEND to .env.local
 npm run dev
 4. Start Drawing
-Open http://localhost:3000, create an account, generate a room, and share the slug with a friend!
+Go to http://localhost:3000, log in, create a room, and share the URL.
 
 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+Found a bug or want to optimize the math even further? PRs are always welcome.
 
 📄 License
-This project is MIT licensed.
+MIT License.
