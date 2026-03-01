@@ -20,8 +20,8 @@ export async function getExistingShapes(roomid: string){
         return shapes;
     } catch (e: any) {
         if (e.response && e.response.status === 404) {
-            alert("Room not found! Redirecting to dashboard...");
-            window.location.href = "/dashboard";
+            // alert("Room not found! Redirecting to dashboard...");
+            // window.location.href = "/dashboard";
         }
         return [];
     }
