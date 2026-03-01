@@ -123,7 +123,7 @@ app.post("/room", middleware, async function(req, res){
     try{    
         const room = await client.room.create({
             data: {
-                slug: parsedData.data.name,
+                slug: slug,
                 adminId: Number(userId), //converted string userid to num/int
             }
         })
