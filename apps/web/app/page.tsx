@@ -54,15 +54,28 @@ export default function Index() {
           </div>
 
           <div className="w-full max-w-5xl mx-auto mb-8">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm mb-3">
-              <div className="aspect-video md:aspect-[21/9] rounded-lg bg-white border border-slate-100 overflow-hidden flex items-center justify-center relative">
+            <div className="relative p-2 rounded-[2rem] bg-white border border-slate-200 shadow-2xl overflow-hidden mb-3">
+              <div className="rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+                <div className="h-10 bg-slate-50/80 border-b border-slate-100 flex items-center px-5 justify-between">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-slate-200" />
+                    <div className="w-3 h-3 rounded-full bg-slate-200" />
+                    <div className="w-3 h-3 rounded-full bg-slate-200" />
+                  </div>
+                  <div className="hidden sm:block px-4 py-1 bg-white border border-slate-200/60 rounded text-[10px] text-slate-400">
+                    flowboard.app/canvas/bst-implementation
+                  </div>
+                  <div className="w-12" />
+                </div>
                 {imgError ? (
-                  <p className="text-[13px] text-slate-400 font-medium">Actual App UI Screen</p>
+                  <div className="aspect-video md:aspect-21/9 flex items-center justify-center">
+                    <p className="text-[13px] text-slate-400 font-medium">Actual App UI Screen</p>
+                  </div>
                 ) : (
                   <img 
-                    src="/dashboard-preview.png" 
-                    alt="Flowboard Dashboard UI" 
-                    className="w-full h-full object-cover"
+                    src="/actualUI.png" 
+                    alt="Flowboard Real-time Canvas" 
+                    className="w-full h-auto block"
                     onError={() => setImgError(true)}
                   />
                 )}

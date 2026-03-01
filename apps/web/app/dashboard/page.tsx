@@ -25,7 +25,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-
 interface Room {
   id: string;
   slug: string;
@@ -38,6 +37,7 @@ export default function Dashboard() {
   const [isOpen, setIsOpen] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [slug, setSlug] = useState("");
+  const [joinError, setJoinError] = useState(""); 
 
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,7 +49,6 @@ export default function Dashboard() {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    
     if (!token) {
       router.push("/signin");
       return;
@@ -57,10 +56,8 @@ export default function Dashboard() {
 
     setIsAuthenticated(true);
 
-
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
-
       const userName = payload.name || payload.username || "";
       setCurrentUser({
         name: userName, 
@@ -72,6 +69,37 @@ export default function Dashboard() {
 
     fetchRooms();
   }, [router]);
+
+  const handleJoinBySlug = async () => {
+    setJoinError(""); 
+
+    const formattedSlug = slug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-') 
+      .replace(/-+/g, '-');        
+    
+    if (formattedSlug.length >= 4) {
+      try {
+        const token = localStorage.getItem("token");
+        // Routing se pehle chupke se check kar lo ki room hai ya nahi
+        await axios.get(`${HTTP_BACKEND}/chats/${formattedSlug}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Agar yahan tak code aaya, matlab room exist karta hai
+        router.push(`/canvas/${formattedSlug}`);
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          setJoinError("This room doesn't exist. Please create it first!");
+        } else {
+          setJoinError("Something went wrong joining the room.");
+        }
+      }
+    } else {
+      setJoinError("Room name must be at least 4 characters");
+    }
+  };
 
   async function handleCreateRoom() {
     if (!roomName.trim()) return;
@@ -115,7 +143,6 @@ export default function Dashboard() {
     }
   }
 
-  
   if (!isAuthenticated) return null;
 
   return (
@@ -132,37 +159,41 @@ export default function Dashboard() {
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-10 gap-4">
         
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Input
-              className="max-w-xs h-9 text-[13px] border-slate-200 shadow-sm"
-              placeholder="Room slug..."
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 px-4 text-[13px] font-medium text-slate-600 border-slate-200 shadow-sm"
-              onClick={() => {
-                const formattedSlug = slug
-                  .trim()
-                  .toLowerCase()
-                  .replace(/\s+/g, "-");
-               
-                router.push(`/canvas/${formattedSlug}`);
-              }}
-              disabled={!slug.trim()}
-            >
-              Join Room
-            </Button>
+          <div className="flex flex-col gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Input
+                className="max-w-xs h-9 text-[13px] border-slate-200 shadow-sm focus-visible:ring-black"
+                placeholder="Room slug..."
+                value={slug}
+                onChange={(e) => {
+                  setSlug(e.target.value);
+                  setJoinError("");
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleJoinBySlug()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 px-4 text-[13px] font-medium text-slate-600 border-slate-200 shadow-sm hover:bg-slate-50 cursor-pointer"
+                onClick={handleJoinBySlug} 
+                disabled={!slug.trim()}
+              >
+                Join Room
+              </Button>
+            </div>
+            {joinError && (
+              <span className="text-xs font-medium text-red-500 ml-1">
+                {joinError}
+              </span>
+            )}
           </div>
 
-          
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button
                 type="button"
-                className="bg-black text-white hover:bg-slate-800 text-[13px] font-medium h-9 px-4 rounded-md shadow-sm w-full sm:w-auto"
+              
+                className="bg-black text-white hover:bg-slate-800 text-[13px] font-medium h-9 px-4 rounded-md shadow-sm w-full sm:w-auto transition-all cursor-pointer"
               >
                 + Create New
               </Button>
@@ -198,7 +229,8 @@ export default function Dashboard() {
 
               <div className="flex justify-end mt-2">
                 <Button
-                  className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-4 shadow-sm w-full sm:w-auto flex items-center gap-2"
+               
+                  className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-4 shadow-sm w-full sm:w-auto flex items-center gap-2 cursor-pointer"
                   type="button"
                   onClick={handleCreateRoom}
                   disabled={isCreating || roomName.trim().length < 4}
@@ -218,7 +250,6 @@ export default function Dashboard() {
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
           </div>
         ) : rooms.length === 0 ? (
-
           <div className="flex flex-col items-center justify-center mt-6 p-20 border-2 border-dashed border-slate-200 rounded-2xl bg-white text-center shadow-sm">
             <h3 className="text-xl font-semibold tracking-tight text-slate-900 mb-2">
               No rooms yet
@@ -229,18 +260,18 @@ export default function Dashboard() {
             </p>
             <Button
               onClick={() => setIsOpen(true)}
-              className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-6 rounded-md shadow-sm"
+
+              className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-6 rounded-md shadow-sm cursor-pointer"
             >
               Create your first room
             </Button>
           </div>
         ) : (
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {rooms.map((room) => (
               <Card
                 key={room.id}
-                className="hover:shadow-md cursor-pointer border-slate-200 shadow-sm transition-all overflow-hidden bg-white group"
+                className="hover:shadow-lg cursor-pointer border-slate-200 shadow-sm transition-all duration-200 overflow-hidden bg-white group hover:-translate-y-1"
                 onClick={() => router.push(`/canvas/${room.slug}`)}
               >
                 <CardHeader className="p-4 pb-2">
@@ -248,20 +279,32 @@ export default function Dashboard() {
                     {room.slug}
                   </CardTitle>
                 </CardHeader>
+                
                 <CardContent className="p-4 pt-0">
-                  <div className="aspect-video bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
-                    <img
-                      src="/canvas-preview.png"
-                      alt="Canvas Preview"
-                      className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                  <div className="aspect-video bg-slate-50 border border-slate-100 rounded-lg relative overflow-hidden group-hover:bg-slate-100 transition-colors">
+                    
+                    <img 
+                      src="/canvas-preview.png" 
+                      alt="Preview" 
+                      className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity z-10"
                       onError={(e) => {
-                        e.currentTarget.style.display = "none";
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
+                    
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 z-0">
+                      <div className="w-8 h-8 border-2 border-slate-300 rounded-md flex items-center justify-center opacity-40">
+                         <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                        Open Canvas
+                      </span>
+                    </div>
+
                   </div>
                 </CardContent>
+
                 <CardFooter className="flex justify-end items-center p-4 pt-0 mt-2">
-                  
                   <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-black group-hover:translate-x-1 transition-all" />
                 </CardFooter>
               </Card>

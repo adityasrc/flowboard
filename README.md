@@ -1,135 +1,90 @@
-# Turborepo starter
+🎨 Flowboard
+A High-Performance, Real-Time Collaborative Whiteboard
 
-This Turborepo starter is maintained by the Turborepo core team.
+Flowboard is a minimalist, production-ready drawing tool built for seamless real-time collaboration. Inspired by the clean aesthetics of Vercel and Linear, it trades bloated third-party canvas engines for a custom-built, highly optimized HTML5 Canvas architecture powered by native WebSockets.
 
-## Using this example
 
-Run the following command:
+🚀 The Motivation (Why I Built This)
+I built Flowboard to conquer one of the most challenging domains in web development: Real-Time Canvas Manipulation & State Synchronization.
 
-```sh
-npx create-turbo@latest
-```
+Building a whiteboard isn't just about drawing lines; it's an exercise in complex mathematics, memory management, and network optimization. I wanted to build a tool from scratch to master:
 
-## What's inside?
+Mathematical Hit-Detection: Using vector projection to calculate distances between user clicks and drawn line segments.
 
-This Turborepo includes the following packages/apps:
+Render Optimization: Decoupling mouse events from browser paints using requestAnimationFrame to achieve a butter-smooth 60fps drawing experience.
 
-### Apps and Packages
+State Reconciliation: Handling WebSocket latency by implementing optimistic UI rendering—drawing locally first, then syncing globally.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+✨ Key Features
+Zero-Lag Collaboration: Native ws WebSocket implementation ensures sub-millisecond stroke broadcasting to all users in a room.
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+Hand-Drawn Aesthetic: Integrated with rough.js to give shapes and paths a natural, sketchy feel.
 
-### Utilities
+Advanced Hit-Detection: Custom Eraser logic that uses bounding boxes for shapes and Euclidean distance/Vector math for straight lines and arrows.
 
-This Turborepo has some additional tools already setup for you:
+Vercel-Inspired Dashboard: A hyper-minimalist, high-contrast dashboard with JWT-based protected routes and session persistence.
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+Persistent Rooms: All strokes are serialized and securely stored in a PostgreSQL database via Prisma, meaning you never lose your work on refresh.
 
-### Build
+🛠️ Tech Stack
+Frontend:
 
-To build all apps and packages, run the following command:
+Next.js 14 (App Router)
 
-```
-cd my-turborepo
+React (Hooks, Context, Ref architecture)
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
+Tailwind CSS & Shadcn UI (Minimalist design system)
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
-```
+HTML5 Canvas API & Rough.js
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+Backend:
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+Node.js & Express
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+Native WebSockets (ws)
 
-### Develop
+PostgreSQL (Database)
 
-To develop all apps and packages, run the following command:
+Prisma (ORM)
 
-```
-cd my-turborepo
+JWT (Authentication)
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+🧠 Engineering Highlights (The Technical Flex)
+Solving the "Canvas Jitter": Dragging shapes across a canvas often causes visual vibration due to negative width/height coordinates. Flowboard implements a strictly normalized bounding-box algorithm (Math.min / Math.abs) to ensure mathematically perfect renders regardless of drag direction.
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
+Optimized Render Loop: Preventing UI thread blocking by throttling high-frequency mousemove events through cancelAnimationFrame and requestAnimationFrame.
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+Precision Eraser Engine: Instead of simply clearing pixels, the eraser mathematically checks if the pointer's coordinates intersect with the mathematical definition of a shape (e.g., using the Pythagorean theorem for circles, and Dot Products for line projections).
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
+Double-Render Prevention: Implemented strict WebSocket event deduplication. When a user draws, the shape is pushed to the local array and the server simultaneously. The incoming broadcast is filtered via unique UUIDs to prevent "ghost" shapes.
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+💻 Running Locally
+1. Clone the repository
 
-### Remote Caching
+Bash
+git clone https://github.com/yourusername/flowboard.git
+cd flowboard
+2. Setup the Backend
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Bash
+cd backend
+npm install
+# Set your DATABASE_URL and JWT_SECRET in .env
+npx prisma generate
+npx prisma db push
+npm run dev
+3. Setup the Frontend
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+Bash
+cd frontend
+npm install
+# Set NEXT_PUBLIC_HTTP_BACKEND and NEXT_PUBLIC_WS_BACKEND in .env.local
+npm run dev
+4. Start Drawing
+Open http://localhost:3000, create an account, generate a room, and share the slug with a friend!
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+🤝 Contributing
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
 
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+📄 License
+This project is MIT licensed.

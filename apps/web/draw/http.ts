@@ -1,16 +1,28 @@
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
 
-
-
 export async function getExistingShapes(roomid: string){
-    const res = await axios.get(`${HTTP_BACKEND}/chats/${roomid}`);
-    const messages = res.data.messages;
+    try {
+        const token = localStorage.getItem("token");
 
-    const shapes = messages.map((msg: any) => { //map because it returns a new array
-        const shapeData = JSON.parse(msg.message)
-        return shapeData.shape;
-    })
+        const res = await axios.get(`${HTTP_BACKEND}/chats/${roomid}`,{
+            headers: {
+                Authorization: `Bearer ${token}` 
+            }
+        });
+        const messages = res.data.messages;
 
-    return shapes;
+        const shapes = messages.map((msg: any) => { //map because it returns a new array
+            const shapeData = JSON.parse(msg.message)
+            return shapeData.shape;
+        })
+
+        return shapes;
+    } catch (e: any) {
+        if (e.response && e.response.status === 404) {
+            alert("Room not found! Redirecting to dashboard...");
+            window.location.href = "/dashboard";
+        }
+        return [];
+    }
 }
