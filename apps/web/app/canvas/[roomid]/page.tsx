@@ -1,22 +1,33 @@
 import { RoomCanvas } from "@/components/RoomCanvas";
-// import { param } from "framer-motion/client";
 
-interface PageProps{
-    params: Promise<{ //nextjs  15 me prarams promise hota hai
-        roomid: string;
-    }>
+interface PageProps {
+  params: Promise<{
+    // Dono ko define kar do taaki TS gussa na kare
+    roomId?: string;
+    roomid?: string;
+  }>;
 }
 
-export default async function ({params } : PageProps){
-    const { roomid } = await params;
-    //from next 15, params returns promises
+export default async function Page({ params }: PageProps) {
+  const resolvedParams = await params;
+  
+  // jo bhi available ho (roomId ya roomid), use utha lo
+  const finalRoomId = resolvedParams.roomId || resolvedParams.roomid;
 
-    console.log("Server received Room ID:", roomid);
+  console.log("Server received Room ID:", finalRoomId);
 
-    return(
-        <div>
-            <RoomCanvas roomId={roomid}/>
-        </div>
-    )
+  // agar kuch bhi nahi mila, toh crash hone se bachao
+  if (!finalRoomId || finalRoomId === "undefined") {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-gray-500">Loading workspace...</p>
+      </div>
+    );
+  }
 
+  return (
+    <div>
+      <RoomCanvas roomId={finalRoomId} />
+    </div>
+  );
 }
