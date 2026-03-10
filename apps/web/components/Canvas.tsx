@@ -13,6 +13,7 @@ import {
   Minus,
   MoveUpRight,
   Diamond,
+  Type,
 } from "lucide-react";
 import { Game } from "@/draw/Game";
 import { useRouter } from "next/navigation";
@@ -40,7 +41,8 @@ export type Tool =
   | "redo"
   | "line"
   | "arrow"
-  | "diamond";
+  | "diamond"
+  | "text";
 
 export function Canvas({ roomId, socket }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -185,18 +187,15 @@ function Topbar({
   return (
     <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white px-2 py-1.5 rounded-xl shadow-md border border-gray-100">
       <div className="flex gap-1 items-center">
+        
         <IconButton
-          onClick={() => {
-            setSelectedTool("pencil");
-          }}
+          onClick={() => setSelectedTool("pencil")}
           activated={selectedTool === "pencil"}
           icon={<Pencil size={18} />}
         />
 
         <IconButton
-          onClick={() => {
-            setSelectedTool("line");
-          }}
+          onClick={() => setSelectedTool("line")}
           activated={selectedTool === "line"}
           icon={<Minus size={18} />}
         />
@@ -208,35 +207,37 @@ function Topbar({
         />
 
         <IconButton
-          onClick={() => setSelectedTool("diamond")}
-          activated={selectedTool === "diamond"}
-          icon={<Diamond size={18} />}
-        />
-        <IconButton
-          onClick={() => {
-            setSelectedTool("rect");
-          }}
+          onClick={() => setSelectedTool("rect")}
           activated={selectedTool === "rect"}
           icon={<RectangleHorizontalIcon size={18} />}
         />
 
         <IconButton
-          onClick={() => {
-            setSelectedTool("circle");
-          }}
+          onClick={() => setSelectedTool("circle")}
           activated={selectedTool === "circle"}
           icon={<Circle size={18} />}
         />
 
         <IconButton
-          onClick={() => {
-            setSelectedTool("eraser");
-          }}
-          activated={selectedTool === "eraser"}
-          icon={<Eraser size={18} />}
+          onClick={() => setSelectedTool("diamond")}
+          activated={selectedTool === "diamond"}
+          icon={<Diamond size={18} />}
+        />
+
+        <IconButton
+          onClick={() => setSelectedTool("text")}
+          activated={selectedTool === "text"}
+          icon={<Type size={18} />} 
         />
 
         <div className="w-px h-4 bg-gray-300 mx-1"></div>
+
+
+        <IconButton
+          onClick={() => setSelectedTool("eraser")}
+          activated={selectedTool === "eraser"}
+          icon={<Eraser size={18} />}
+        />
 
         <IconButton
           onClick={onUndo}
@@ -252,16 +253,17 @@ function Topbar({
 
         <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
-        <IconButton
-          onClick={onLeave}
-          activated={false}
-          icon={<X size={18} />}
-        />
-
+        
         <IconButton
           onClick={onDownload}
           activated={false}
           icon={<Download size={18} />}
+        />
+
+        <IconButton
+          onClick={onLeave}
+          activated={false}
+          icon={<X size={18} />}
         />
       </div>
     </div>
