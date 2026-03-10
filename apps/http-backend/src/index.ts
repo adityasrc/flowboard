@@ -1,5 +1,5 @@
-import 'dotenv/config';  //  loads .env
-
+import dotenv from 'dotenv';  //  loads .env
+dotenv.config();
 import express from "express";
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +14,12 @@ app.use(cors());
 app.use(express.json());
 
 //signup - for new account(register)
+
+app.get('/', function(req, res){
+    res.status(200).json({
+        message: "Flowboard backend in running!"
+    })
+})
 
 app.post("/signup", async function(req, res){
     // const username = req.body.username;

@@ -4,7 +4,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 //Request, Response and NextFunction are types for the middleware parameters
 export function middleware(req: Request, res: Response, next: NextFunction) {
   //jwt token are stored at headers.authorization
-  const authHeader = req.headers["authorization"] ?? ""; //we need to give emtpy stiring too or it takes undefined type
+  const authHeader = req.headers["authorization"] ?? ""; //we need to give emtpy string too or it takes undefined type
 
   const token = authHeader.split(" ")[1] ?? "";
   if (!token) {
