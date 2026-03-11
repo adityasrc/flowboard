@@ -415,6 +415,9 @@ export class Game {
 
     if(selectedTool === "text"){
       this.isClicked = false;
+
+      const x = e.clientX;
+      const y = e.clientY;
       
       const input = document.createElement("input");
       input.type = "text";
@@ -443,8 +446,8 @@ export class Game {
           const textShape: Shape = {
             type: "Text",
             text: textValue,
-            x: this.startX,
-            y: this.startY, 
+            x: x,
+            y: y, 
             seed: this.currentSeed,
             id: crypto.randomUUID(),
           };
