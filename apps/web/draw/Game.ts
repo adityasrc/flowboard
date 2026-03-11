@@ -52,6 +52,13 @@ type Shape =
       height: number;
       seed: number;
       id: string;
+    } | {
+      type: "Text";
+      text: string;
+      x: number;
+      y: number;
+      seed: number;
+      id: string;
     };
 
 export class Game {
@@ -234,7 +241,8 @@ export class Game {
       | "redo"
       | "line"
       | "arrow"
-      | "diamond",
+      | "diamond"
+      | "text",
   ) {
     this.selectedTool = Tool;
   }
@@ -363,6 +371,11 @@ export class Game {
             seed: shape.seed, 
         });
 
+      }else if(shape.type === "Text"){
+        this.ctx.font = "24px sans-serif";
+        this.ctx.textBaseline = "top";
+        this.ctx.fillStyle = "black";
+        this.ctx.fillText(shape.text, shape.x, shape.y + 3);
       }
     });
   }
@@ -398,6 +411,70 @@ export class Game {
           return;
         }
       }
+    }
+
+    if(selectedTool === "text"){
+      this.isClicked = false;
+      
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "";
+
+      input.style.position = "fixed"; // fixed use kiya taaki scroll ka panga na ho
+      input.style.left = `${e.clientX}px`;
+      input.style.top = `${e.clientY}px`;
+      input.style.font = "24px sans-serif";
+      input.style.background = "transparent";
+      input.style.border = "none"; 
+      input.style.outline = "none";
+      input.style.zIndex = "1000";
+      input.style.padding = "0"; 
+      input.style.margin = "0";
+      input.style.lineHeight = "1"; 
+      input.style.zIndex = "1000";
+
+      document.body.appendChild(input);
+      setTimeout(() => input.focus(), 0);
+
+      input.addEventListener("blur", () => {
+        const textValue = input.value.trim();
+        
+        if (textValue !== "") {
+          const textShape: Shape = {
+            type: "Text",
+            text: textValue,
+            x: this.startX,
+            y: this.startY, 
+            seed: this.currentSeed,
+            id: crypto.randomUUID(),
+          };
+
+          this.shapes.push(textShape);
+          this.existingShapes();
+
+          if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(
+              JSON.stringify({
+                type: "chat",
+                message: JSON.stringify({ shape: textShape }),
+                roomId: this.roomId,
+              })
+            );
+          }
+        }
+        // input box ka kaam khatam, usko mita do
+        input.remove();
+      });
+
+      //  agar user 'Enter' dabaye toh bhi save ho jaye
+      input.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          input.blur(); // blur trigger karega toh upar wala code khud chal jayega
+        }
+      });
+
+      return;
+
     }
   };
 
