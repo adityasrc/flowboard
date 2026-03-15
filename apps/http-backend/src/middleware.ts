@@ -8,7 +8,7 @@ export function middleware(req: Request, res: Response, next: NextFunction) {
 
   const token = authHeader.split(" ")[1] ?? "";
   if (!token) {
-    return res.status(401).json({ message: "Token missing" });
+    return res.status(401).json({ message: "Token missing" }); // 401 - unauthorized
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload; //jwt.verify only takes string as first input
