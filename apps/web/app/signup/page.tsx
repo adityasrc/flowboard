@@ -72,9 +72,11 @@ export default function Signup() {
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center bg-slate-50">
       
-      <Link href="/" className="flex items-center gap-2 mb-8 hover:opacity-80 transition-opacity">
-        <Layers className="h-6 w-6 text-black" strokeWidth={2.5} />
-        <span className="font-bold text-2xl tracking-tight text-black">
+      <Link href="/" className="flex items-center gap-2.5 mb-8 group">
+        <div className="bg-black p-1.5 rounded-xl transition-transform group-hover:rotate-6">
+          <Layers className="h-5 w-5 text-white" strokeWidth={2.5} />
+        </div>
+        <span className="font-bold text-[20px] tracking-tight text-black">
           Flowboard
         </span>
       </Link>

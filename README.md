@@ -40,30 +40,30 @@ Echo Cancellation: When you draw, the shape renders instantly on your screen and
 💻 Run it Locally
 1. Clone the repo
 
-Bash
+```bash
 git clone https://github.com/adityasrc/flowboard.git
 cd flowboard
-2. Fire up the Backend
+```
 
-Bash
-cd backend
-npm install
-# Add your DATABASE_URL and JWT_SECRET to .env
+2. Install Dependencies (Monorepo)
+
+```bash
+pnpm install
+```
+
+3. Setup Database (Prisma)
+Add your `DATABASE_URL` and `JWT_SECRET` to the `.env` file in the root.
+```bash
+cd packages/database
 npx prisma generate
 npx prisma db push
-npm run dev
-3. Fire up the Frontend
+cd ../..
+```
 
-Bash
-cd frontend
-npm install
-# Add NEXT_PUBLIC_HTTP_BACKEND and NEXT_PUBLIC_WS_BACKEND to .env.local
-npm run dev
-4. Start Drawing
-Go to http://localhost:3000, log in, create a room, and share the URL.
+4. Fire up the Dev Server
 
-🤝 Contributing
-Found a bug or want to optimize the math even further? PRs are always welcome.
+```bash
+pnpm dev
+```
 
-📄 License
-MIT License.
+Go to `http://localhost:3000`, log in, initialize a workspace, and share the URL.

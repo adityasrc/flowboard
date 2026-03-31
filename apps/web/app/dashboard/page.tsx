@@ -38,15 +38,17 @@ export default function Dashboard() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [slug, setSlug] = useState("");
   const [joinError, setJoinError] = useState(""); 
-
-  const router = useRouter();
+  
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     name?: string;
     email?: string;
   }>({});
 
+  const router = useRouter();
+
   useEffect(() => {
+    // Check auth client side (Standard React SPA approach)
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -57,6 +59,7 @@ export default function Dashboard() {
     setIsAuthenticated(true);
 
     try {
+      // Decode JWT token payload silently (atob is base64 decoder)
       const payload = JSON.parse(atob(token.split(".")[1]));
       const userName = payload.name || payload.username || "";
       setCurrentUser({
@@ -70,34 +73,24 @@ export default function Dashboard() {
     fetchRooms();
   }, [router]);
 
-  const handleJoinBySlug = async () => {
+  const handleJoinBySlug = () => {
     setJoinError(""); 
 
+    // URL styling rules ke hisaab se slug ko sanitize kiya
     const formattedSlug = slug
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '-') 
       .replace(/-+/g, '-');        
     
+    // Yaha pehle ek REST API (axios) call hoti thi room check karne ke liye.
+    // Us se "Double Latency" hoti thi user ko join krne par. Ab hum usko hata diye hain.
+    // Hum Optimistic Routing use kar rahe hain: simply assume room exist karta h, 
+    // navigate immediately, and let the Canvas WebSocket catch the specific 404 error if it doesn't.
     if (formattedSlug.length >= 4) {
-      try {
-        const token = localStorage.getItem("token");
-        // Routing se pehle chupke se check kar lo ki room hai ya nahi
-        await axios.get(`${HTTP_BACKEND}/chats/${formattedSlug}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // Agar yahan tak code aaya, matlab room exist karta hai
-        router.push(`/canvas/${formattedSlug}`);
-      } catch (e: any) {
-        if (e.response?.status === 404) {
-          setJoinError("This room doesn't exist. Please create it first!");
-        } else {
-          setJoinError("Something went wrong joining the room.");
-        }
-      }
+      router.push(`/canvas/${formattedSlug}`);
     } else {
-      setJoinError("Room name must be at least 4 characters");
+      setJoinError("Room slug must be at least 4 characters.");
     }
   };
 
@@ -143,7 +136,14 @@ export default function Dashboard() {
     }
   }
 
-  if (!isAuthenticated) return null;
+  // loader dikhao jab tak auth check chal rha h locally taaki white screen (hydration flash) na ho
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAFA] gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -153,17 +153,18 @@ export default function Dashboard() {
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
           My Rooms
         </h1>
-        <p className="text-[14px] text-[#666666] mt-1">
-          Select a room to start collaborating, or create a new one.
+        <p className="text-[14px] text-[#666666] mt-1 mb-10">
+          Select a workspace to start collaborating, or create a new one instantly.
         </p>
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-10 gap-4">
+        {/* Action Bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         
           <div className="flex flex-col gap-2 w-full sm:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Input
                 className="max-w-xs h-9 text-[13px] border-slate-200 shadow-sm focus-visible:ring-black"
-                placeholder="Room slug..."
+                placeholder="Enter room slug..."
                 value={slug}
                 onChange={(e) => {
                   setSlug(e.target.value);
@@ -178,7 +179,7 @@ export default function Dashboard() {
                 onClick={handleJoinBySlug} 
                 disabled={!slug.trim()}
               >
-                Join Room
+                Join
               </Button>
             </div>
             {joinError && (
@@ -192,7 +193,6 @@ export default function Dashboard() {
             <DialogTrigger asChild>
               <Button
                 type="button"
-              
                 className="bg-black text-white hover:bg-slate-800 text-[13px] font-medium h-9 px-4 rounded-md shadow-sm w-full sm:w-auto transition-all cursor-pointer"
               >
                 + Create New
@@ -201,10 +201,10 @@ export default function Dashboard() {
             <DialogContent className="sm:max-w-md rounded-xl border-slate-100 shadow-lg">
               <DialogHeader>
                 <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Create Room
+                  New Workspace
                 </DialogTitle>
                 <DialogDescription className="text-[14px] text-[#666666]">
-                  Give your new room a name to get started.
+                  Give your canvas a custom slug to get started.
                 </DialogDescription>
               </DialogHeader>
 
@@ -214,7 +214,7 @@ export default function Dashboard() {
                     htmlFor="name"
                     className="text-[13px] font-medium text-slate-700"
                   >
-                    Room Name
+                    Room URL Slug
                   </Label>
                   <Input
                     id="name"
@@ -223,13 +223,13 @@ export default function Dashboard() {
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
                     className="border-slate-200 shadow-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
                   />
                 </div>
               </div>
 
               <div className="flex justify-end mt-2">
                 <Button
-               
                   className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-4 shadow-sm w-full sm:w-auto flex items-center gap-2 cursor-pointer"
                   type="button"
                   onClick={handleCreateRoom}
@@ -244,7 +244,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      <section className="mt-4 max-w-7xl mx-auto p-6 md:px-10">
+      <section className="mt-2 max-w-7xl mx-auto px-6 md:px-10 pb-20">
         {isFetching ? (
           <div className="flex flex-col items-center justify-center mt-6 p-20">
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
@@ -252,18 +252,16 @@ export default function Dashboard() {
         ) : rooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center mt-6 p-20 border-2 border-dashed border-slate-200 rounded-2xl bg-white text-center shadow-sm">
             <h3 className="text-xl font-semibold tracking-tight text-slate-900 mb-2">
-              No rooms yet
+              No active workspaces
             </h3>
             <p className="text-[14px] text-[#666666] mb-6 max-w-sm mx-auto">
-              You haven't created any Flowboards. Start collaborating by
-              creating your first room.
+              You haven't created any Flowboards yet. Start sketching by creating your first room.
             </p>
             <Button
               onClick={() => setIsOpen(true)}
-
               className="bg-black text-white hover:bg-slate-800 text-[13px] h-9 px-6 rounded-md shadow-sm cursor-pointer"
             >
-              Create your first room
+              Initialize a canvas
             </Button>
           </div>
         ) : (
@@ -292,12 +290,13 @@ export default function Dashboard() {
                       }}
                     />
                     
+                    {/* Fallback pattern that looks super clean if no preview image exists */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 z-0">
                       <div className="w-8 h-8 border-2 border-slate-300 rounded-md flex items-center justify-center opacity-40">
                          <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                        Open Canvas
+                        Open Workspace
                       </span>
                     </div>
 
