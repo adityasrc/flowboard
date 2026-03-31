@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, Github } from "lucide-react";
 import { LandingHeader } from "@/components/LandingHeader";
 import { LandingFooter } from "@/components/LandingFooter";
+import { HTTP_BACKEND } from "@/config";
 
 export default function Index() {
   const [imgError, setImgError] = useState(false);
+
+  // Render server so jata hai 15 min me, toh landing page khulte hi usko utha denge pre-warm karke
+  useEffect(() => {
+    fetch(`${HTTP_BACKEND}/`).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-100 antialiased font-sans flex flex-col">
@@ -19,7 +25,7 @@ export default function Index() {
           <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[13px] font-medium text-slate-600 mb-8">
             <span className="mr-2">v1.0</span>
             <div className="w-px h-3 bg-slate-200 mx-2"></div>
-            <span>MIT Licensed Open Source</span>
+            <span>Real-Time Portfolio Project</span>
           </div>
 
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-black leading-[1.1] mb-6">
@@ -119,9 +125,9 @@ export default function Index() {
             </div>
 
             <div>
-              <h3 className="text-[16px] font-bold text-black mb-2 tracking-tight">Custom Canvas Interaction Layer</h3>
+              <h3 className="text-[16px] font-bold text-black mb-2 tracking-tight">Raw Canvas API & Rough.js</h3>
               <p className="text-[15px] text-[#666666] leading-relaxed max-w-2xl">
-                Built a custom canvas interaction layer from scratch. Utilized Pythagoras theorem for circle-point collision detection and coordinate mapping for pencil-stroke erasure, avoiding heavy 3rd-party canvas libraries.
+                Avoided monolithic frameworks like Fabric.js or Konva. The interaction layer and state management are built from scratch using the raw HTML5 Canvas API, utilizing Rough.js strictly for the hand-drawn aesthetic.
               </p>
             </div>
 
@@ -154,8 +160,8 @@ export default function Index() {
             <div className="flex gap-4">
               <div className="text-[13px] font-bold text-slate-400 mt-1">02</div>
               <div>
-                <h3 className="text-[15px] font-bold text-black mb-1">Server Broadcasts Events</h3>
-                <p className="text-[14px] text-[#666666]">The Node.js backend validates incoming payloads against the active room ID and immediately relays updates to connected peers.</p>
+                <h3 className="text-[15px] font-bold text-black mb-1">Server Persists & Broadcasts</h3>
+                <p className="text-[14px] text-[#666666]">The Node.js backend validates payloads against the active room ID, persists the state to PostgreSQL for durability, and relays updates to connected peers.</p>
               </div>
             </div>
 

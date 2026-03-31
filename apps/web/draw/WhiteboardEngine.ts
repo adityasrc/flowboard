@@ -61,7 +61,7 @@ type Shape =
       id: string;
     };
 
-export class Game {
+export class WhiteboardEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private shapes: Shape[];

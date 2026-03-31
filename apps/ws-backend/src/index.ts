@@ -7,8 +7,6 @@ const port = process.env.PORT ? Number(process.env.PORT) : 8081;
 
 const wss = new WebSocketServer({ port });
 
-// console.log("Ws Server started on 8081");
-
 interface User {
   ws: WebSocket;
   rooms: string[];
@@ -17,22 +15,22 @@ interface User {
 
 const users: User[] = [];
 
-function checkUser(token: string): string | null {
-  // console.log("1. Checking token:", token); // Is the token arriving?
+// In-memory cache taaki har shape draw par bar-bar DB hit na ho
+// Ye N+1 query exhaust problem ko seedha solve kar dega bina Redis ke.
+const roomCache: Record<string, number> = {};
 
+function checkUser(token: string): string | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    // console.log("2. Decoded Token:", decoded); // What is inside?
 
     if (!decoded || !decoded.id) {
-      console.log("3. Failed: ID is missing in token");
+      console.log("Failed: ID is missing in token");
       return null;
     }
 
-    // console.log("4. Success! User ID:", decoded.id);
     return String(decoded.id);
+
   } catch (e) {
-    // console.log("3. Failed: Verify crashed. Error:", e);
     return null;
   }
 }
@@ -42,26 +40,26 @@ wss.on("connection", function connection(ws, request) {
   if (!url) {
     return;
   }
-  const queryParams = new URLSearchParams(url.split("?")[1]);
+  const queryParams = new URLSearchParams(url.split("?")[1]); 
   const token = queryParams.get("token") || "";
 
-  const userIdOrNull = checkUser(token);
-  if (!userIdOrNull) {
+  const userId = checkUser(token);
+  if (!userId) {
     ws.close();
     return;
   }
 
-  const userId = userIdOrNull;
-
   users.push({
-    //we will push the user to out array
     userId,
     rooms: [],
     ws,
   });
 
   ws.on("close", ()=>{
-    const index = users.findIndex((user) => user.ws === ws);
+    const index = users.findIndex(function(user){
+      return user.ws === ws
+    })
+
     if(index != -1){
       users.splice(index, 1)
     }
@@ -73,7 +71,6 @@ wss.on("connection", function connection(ws, request) {
       if (typeof data !== "string") {
         parsedData = JSON.parse(data.toString());
       } else {
-        // 1. Data ko string mein convert karna zaroori hai
         parsedData = JSON.parse(data);
       }
 
@@ -88,68 +85,78 @@ wss.on("connection", function connection(ws, request) {
         if (!user) {
           return;
         }
-        //Logic was inverted! We want to KEEP rooms that are NOT the one we left
         user.rooms = user.rooms.filter((x) => x !== parsedData.roomId);
         console.log("Left room:", parsedData.roomId);
       }
 
-      if (parsedData.type === "chat") {
+      if (parsedData.type === "create_shape") {
         const roomSlug = parsedData.roomId;
         const message = parsedData.message;
 
-        // console.log("Attempting to send chat to room:", roomId);
         try {
-          const room = await client.room.findUnique({
-            where: {
-              slug: roomSlug,
-            },
-          });
+          // Database connection pool exhaust hone se bachane ke liye pehle local memory (cache) check karo
+          let roomId = roomCache[roomSlug];
 
-          if (!room) {
-            console.log("Room not found in DB");
-            return; // FIX ADDED: Stop execution if room is missing
+          if (!roomId) {
+            const room = await client.room.findUnique({
+              where: { slug: roomSlug },
+            });
+
+            if (!room) {
+              console.log("Room not found in DB");
+              return;
+            }
+            // Pehli baar room mila toh cache me store kar lo O(1) time access ke liye
+            roomId = room.id;
+            roomCache[roomSlug] = room.id;
           }
+
+          users.forEach((user) => {
+            if (user.rooms.includes(roomSlug)) {
+              user.ws.send(
+                JSON.stringify({
+                  type: "create_shape",
+                  message: message,
+                  roomId: roomSlug,
+                }),
+              );
+            }
+          });
 
           await client.chat.create({
             data: {
-              roomId: room.id,
+              roomId: roomId,
               message,
               userId: Number(userId),
             },
           });
-          //first add in db then brodcast
-          //queue is the better approach
-
-          users.forEach((user) => {
-            // Check: Is the user actually in this room
-            if (user.rooms.includes(roomSlug)) {
-              //  Check against slug, not object
-              user.ws.send(
-                JSON.stringify({
-                  type: "chat",
-                  message: message,
-                  roomId: roomSlug, // Send back the slug so client knows where to put it
-                }),
-              );
-              console.log("➡️ Sent message to user");
-            }
-          }); // FIX ADDED: Correct closing for forEach
+          
         } catch (e) {
           console.log("DB Error:", e);
         }
+
       } else if (parsedData.type === "delete_shape") {
         const roomSlug = parsedData.roomId;
         const shapeId = parsedData.id;
 
         try {
-          const room = await client.room.findUnique({
-            where: {slug: roomSlug}
-          });
-          if(!room) return;
+          let roomId = roomCache[roomSlug];
 
+          if (!roomId) {
+            const room = await client.room.findUnique({
+              where: { slug: roomSlug }
+            });
+            if (!room) return;
+            roomId = room.id;
+            roomCache[roomSlug] = room.id;
+          }
+
+          // Interview Knowledge Note: String text ke andar Prisma ka 'contains' SQL me LIKE '%shapeId%' banta hai.
+          // Iska matlab ye poori Database Table ko line-by-line read (scan) karta hai O(N) time me.
+          // Abhi demo ke liye theek hai but production me shapeId ko native DB Column banana padega indexing ke liye.
           await client.chat.deleteMany({
             where: {
-              roomId: room.id,
+              roomId: roomId,
               message: {
                 contains: shapeId,
               },
@@ -176,6 +183,4 @@ wss.on("connection", function connection(ws, request) {
       return;
     }
   });
-
-  //auth for room
 });

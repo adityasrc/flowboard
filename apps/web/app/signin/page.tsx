@@ -70,10 +70,12 @@ export default function Signin() {
         
         <Link
           href="/"
-          className="flex items-center gap-2 mb-8 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2.5 mb-8 group"
         >
-          <Layers className="h-6 w-6 text-black" strokeWidth={2.5} />
-          <span className="font-bold text-2xl tracking-tight text-black">
+          <div className="bg-black p-1.5 rounded-xl transition-transform group-hover:rotate-6">
+            <Layers className="h-5 w-5 text-white" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-[20px] tracking-tight text-black">
             Flowboard
           </span>
         </Link>
