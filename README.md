@@ -1,58 +1,48 @@
-🎨 Flowboard
-Flowboard is a minimal, fast, real-time collaborative whiteboard. No bloated third-party canvas libraries—just pure HTML5 Canvas, WebSockets, and a lot of math. Inspired by the clean aesthetics of Vercel and Linear, it's built to be fast, responsive, and persistent.
+# Flowboard
 
-🚀 Why I Built This
-Honestly, I didn't just want to build another drawing app. I built Flowboard because I wanted to understand the hard parts of web development: high-frequency state synchronization and raw canvas manipulation.
+I built Flowboard because I wanted to understand the actual mechanics of real-time collaboration. It's easy to simply plug in a heavy, pre-built whiteboard engine, but I wanted to figure out how high-frequency state synchronization and raw canvas manipulation actually work under the hood.
 
-Instead of plugging in a heavy pre-built engine, I built this from scratch to figure out:
+This project is a minimal, fast, and highly persistent collaborative whiteboard. It relies on pure HTML5 Canvas and native WebSockets, utilizing a lot of underlying vector math to calculate intersections, dot products, and boundary collisions natively.
 
-Vector Math: How to calculate exact distances between a mouse click and a drawn line.
+## Core Engineering Problems Solved
 
-Render Cycles: How to drop React's default re-renders and use requestAnimationFrame for a butter-smooth 60fps experience.
+When building this architecture from scratch, I had to solve a few interesting engineering challenges:
 
-Optimistic UI: How to hide network latency by drawing locally first, then syncing globally without causing duplicate "ghost" renders.
+The first was the **canvas jitter** problem. If you click and drag a shape backwards across the screen (right-to-left or bottom-to-top), the width and height calculations physically become negative. This causes standard canvas renderers to freak out and vibrate the drawn shape uncontrollably. I wrote a custom mathematical normalizer using bounded max/min logic to ensure the rendering coordinates are always strictly positive, regardless of how fast or chaotic the mouse trajectory is.
 
-✨ What's Inside?
-Zero-Lag Sync: Native ws WebSockets to broadcast strokes in sub-milliseconds.
+The second challenge was **rendering performance**. Redrawing an entire array of shapes sequentially on every single `mousemove` event immediately blocks the main thread and tanks the browser's frame rate. I implemented a render-throttling mechanism relying closely on `requestAnimationFrame` to rapidly cancel stale ghost frames and maintain a smooth 60 frames per second during aggressive drawing sweeps.
 
-Hand-Drawn Vibe: Integrated rough.js so shapes don't look boring and rigid.
+The third was **optimistic UI and echo cancellation**. When you draw a shape, it renders instantly on your local screen to hide network latency, while simultaneously firing over the WebSocket. However, when the server blindly broadcasts that same shape back to everyone in the room, it would double-render a "ghost shape" on the original client. I built a UUID-based deduplication layer on the frontend to explicitly ignore returning echoes of a client's own shapes.
 
-Math-Based Eraser: It doesn't just wipe pixels. The eraser calculates if your cursor intersects with a shape's mathematical bounds (using Pythagorean theorem for circles, and Dot Products for lines).
+The fourth was **decoupling the real-time path from persistence**. On every shape creation, the WebSocket server immediately broadcasts to all room members and then fires a non-blocking PostgreSQL write in the background. The event loop is never stalled waiting for a Neon round-trip, which means a slow database never freezes the canvas for everyone in the room.
 
-Persistent Sessions: Every stroke is serialized and saved in a PostgreSQL DB via Prisma. Refresh the page, and your board is exactly how you left it.
+The fifth was **connection resilience**. The frontend implements an exponential backoff reconnect loop (`1s → 2s → 4s → 8s → 16s`) so a brief network blip or a server cold-start never leaves users stranded on a silent loading screen. On the server side, a 30-second ping/pong heartbeat detects and terminates ghost connections before they accumulate in memory.
 
-JWT Protected: Secure, isolated rooms for your team.
+The sixth was **user-scoped undo**. In a collaborative canvas, `this.shapes` contains every user's shapes. A naive `.pop()` on undo would destroy the last shape in the array — which could be another user's work. The undo stack now tracks shape ownership locally via a `Set<string>` and walks backward through the array to find only the calling user's most recent shape.
 
-🛠️ The Stack
-Frontend: Next.js 14, React, Tailwind CSS, Shadcn UI, HTML5 Canvas API
+Finally, **pencil point optimization**. Raw mouse coordinates captured at 60fps produce hundreds of redundant collinear points per stroke. A distance-based throttle (5px minimum separation) discards visually identical samples before they reach the coordinate array, cutting typical pencil payloads by ~70% with no perceptible quality loss.
 
-Backend: Node.js, Express, Native WebSockets (ws)
+## System Architecture
 
-Database: PostgreSQL, Prisma ORM
+The frontend is a Next.js application tightly integrated with a raw HTML5 Canvas API, utilizing Rough.js under the hood for an organic, hand-drawn architectural aesthetic.
 
-🧠 The Technical Flex (Problems I Solved)
-Killing the "Canvas Jitter": If you drag a shape backwards (right-to-left), the width/height becomes negative and the canvas engine freaks out, causing the shape to vibrate. I fixed this by writing a custom normalizer using Math.min and Math.abs to ensure coordinates are always strictly positive, no matter how chaotic the mouse drag is.
+The real-time layer is handled by an isolated Node.js WebSocket server. The JWT is transported via the `Sec-WebSocket-Protocol` header rather than the URL query string — query params are recorded verbatim by every reverse proxy's access log, making URL-based tokens a credential leak surface. To prevent the database connection pool from rapidly exhausting during high-frequency shape broadcasting, I implemented an in-memory local dictionary cache `roomCache` on the WebSocket server that eliminates heavy N+1 PostgreSQL queries.
 
-Unblocking the Main Thread: Throttling high-frequency mousemove events using cancelAnimationFrame and requestAnimationFrame to keep the UI from freezing during intense drawing sessions.
+Persistence is managed seamlessly through PostgreSQL and orchestrated by Prisma. Workspaces are protected by a lightweight JWT authentication layer so sessions remain secure. The `JWT_SECRET` is validated at server startup — a missing secret causes an immediate crash with a clear error rather than silently falling back to a known string.
 
-Echo Cancellation: When you draw, the shape renders instantly on your screen and fires to the server. But when the server broadcasts that same shape back to the room, your client needs to know to ignore it. I implemented UUID-based deduplication to stop double-renders.
+## Running the Environment Locally
 
-💻 Run it Locally
-1. Clone the repo
+If you want to spin this up locally to inspect the architecture, the monorepo uses `pnpm`.
 
+1. Clone the repository and install the workspace dependencies:
 ```bash
 git clone https://github.com/adityasrc/flowboard.git
 cd flowboard
-```
-
-2. Install Dependencies (Monorepo)
-
-```bash
 pnpm install
 ```
 
-3. Setup Database (Prisma)
-Add your `DATABASE_URL` and `JWT_SECRET` to the `.env` file in the root.
+2. Setup the database schema:
+Create a `.env` file in the root with your `DATABASE_URL` and `JWT_SECRET`.
 ```bash
 cd packages/database
 npx prisma generate
@@ -60,10 +50,9 @@ npx prisma db push
 cd ../..
 ```
 
-4. Fire up the Dev Server
-
+3. Boot the monorepo:
 ```bash
 pnpm dev
 ```
 
-Go to `http://localhost:3000`, log in, initialize a workspace, and share the URL.
+The application will start on `localhost:3000`. Create an account, spin up a workspace, and start analyzing the socket traffic in your network tab.
