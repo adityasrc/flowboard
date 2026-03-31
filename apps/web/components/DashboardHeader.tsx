@@ -97,16 +97,7 @@ export function DashboardHeader({ user }: UserProps) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-slate-100" />
                 
-                <DropdownMenuItem className="cursor-pointer text-[13px] text-slate-700 hover:text-black focus:bg-slate-50">
-                  <UserIcon className="mr-2 h-4 w-4 text-slate-500" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer text-[13px] text-slate-700 hover:text-black focus:bg-slate-50">
-                  <Settings className="mr-2 h-4 w-4 text-slate-500" />
-                  Settings
-                </DropdownMenuItem>
-                
-                <DropdownMenuSeparator className="bg-slate-100" />
+
                 
                 <DropdownMenuItem 
                   onSelect={(e) => {

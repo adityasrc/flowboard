@@ -6,8 +6,6 @@ import { client } from "@repo/db/client";
 const port = process.env.PORT ? Number(process.env.PORT) : 8081;
 
 const wss = new WebSocketServer({ port });
-// WebSockets are "push" (server can send data whenever it wants).
-// console.log("Ws Server started on 8081");
 
 interface User {
   ws: WebSocket;
@@ -16,6 +14,10 @@ interface User {
 }
 
 const users: User[] = [];
+
+// In-memory cache taaki har shape draw par bar-bar DB hit na ho
+// Ye N+1 query exhaust problem ko seedha solve kar dega bina Redis ke.
+const roomCache: Record<string, number> = {};
 
 function checkUser(token: string): string | null {
   try {
@@ -38,7 +40,7 @@ wss.on("connection", function connection(ws, request) {
   if (!url) {
     return;
   }
-  const queryParams = new URLSearchParams(url.split("?")[1]); //to extract jwt form url
+  const queryParams = new URLSearchParams(url.split("?")[1]); 
   const token = queryParams.get("token") || "";
 
   const userId = checkUser(token);
@@ -48,12 +50,10 @@ wss.on("connection", function connection(ws, request) {
   }
 
   users.push({
-    //we will push the user to our array
     userId,
     rooms: [],
     ws,
   });
-
 
   ws.on("close", ()=>{
     const index = users.findIndex(function(user){
@@ -65,15 +65,11 @@ wss.on("connection", function connection(ws, request) {
     }
   })
 
-
-
   ws.on("message", async function message(data) {
     try {
       let parsedData;
       if (typeof data !== "string") {
-        //  Data ko string mein convert karna zaroori hai
         parsedData = JSON.parse(data.toString());
-
       } else {
         parsedData = JSON.parse(data);
       }
@@ -98,36 +94,38 @@ wss.on("connection", function connection(ws, request) {
         const message = parsedData.message;
 
         try {
-          const room = await client.room.findUnique({
-            where: {
-              slug: roomSlug,
-            },
-          });
+          // Database connection pool exhaust hone se bachane ke liye pehle local memory (cache) check karo
+          let roomId = roomCache[roomSlug];
 
-          if (!room) {
-            console.log("Room not found in DB");
-            return;
+          if (!roomId) {
+            const room = await client.room.findUnique({
+              where: { slug: roomSlug },
+            });
+
+            if (!room) {
+              console.log("Room not found in DB");
+              return;
+            }
+            // Pehli baar room mila toh cache me store kar lo O(1) time access ke liye
+            roomId = room.id;
+            roomCache[roomSlug] = room.id;
           }
-
-          //queue is the better approach
 
           users.forEach((user) => {
             if (user.rooms.includes(roomSlug)) {
-              //  Check against slug, not object
               user.ws.send(
                 JSON.stringify({
                   type: "create_shape",
                   message: message,
-                  roomId: roomSlug, // Send back the slug so client knows where to put it
+                  roomId: roomSlug,
                 }),
               );
-              console.log("Sent message to user");
             }
           });
 
           await client.chat.create({
             data: {
-              roomId: room.id,
+              roomId: roomId,
               message,
               userId: Number(userId),
             },
@@ -142,14 +140,23 @@ wss.on("connection", function connection(ws, request) {
         const shapeId = parsedData.id;
 
         try {
-          const room = await client.room.findUnique({
-            where: {slug: roomSlug}
-          });
-          if(!room) return;
+          let roomId = roomCache[roomSlug];
 
+          if (!roomId) {
+            const room = await client.room.findUnique({
+              where: { slug: roomSlug }
+            });
+            if (!room) return;
+            roomId = room.id;
+            roomCache[roomSlug] = room.id;
+          }
+
+          // Interview Knowledge Note: String text ke andar Prisma ka 'contains' SQL me LIKE '%shapeId%' banta hai.
+          // Iska matlab ye poori Database Table ko line-by-line read (scan) karta hai O(N) time me.
+          // Abhi demo ke liye theek hai but production me shapeId ko native DB Column banana padega indexing ke liye.
           await client.chat.deleteMany({
             where: {
-              roomId: room.id,
+              roomId: roomId,
               message: {
                 contains: shapeId,
               },

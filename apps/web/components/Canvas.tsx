@@ -15,7 +15,7 @@ import {
   Diamond,
   Type,
 } from "lucide-react";
-import { Game } from "@/draw/Game";
+import { WhiteboardEngine } from "@/draw/WhiteboardEngine";
 import { useRouter } from "next/navigation";
 
 import {
@@ -67,7 +67,7 @@ export function Canvas({ roomId, socket }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // game instance ko hold karega
-  const gameRef = useRef<Game | null>(null);
+  const gameRef = useRef<WhiteboardEngine | null>(null);
 
   //pointer to the canvas
 
@@ -93,7 +93,7 @@ export function Canvas({ roomId, socket }: CanvasProps) {
 
     // console.log("Canvas Init with:", { roomId, socket });
 
-    const game = new Game(canvas, roomId, socket);
+    const game = new WhiteboardEngine(canvas, roomId, socket);
 
     game.setTool(selectedTool);
 
