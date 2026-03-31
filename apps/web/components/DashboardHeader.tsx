@@ -55,18 +55,22 @@ export function DashboardHeader({ user }: UserProps) {
         <div className="max-w-7xl mx-auto flex h-14 items-center justify-between px-6">
           
           <div className="flex items-center">
-            <Link href="/dashboard" className="flex items-center gap-2 md:gap-3">
-              <Layers className="h-5 w-5 text-black" strokeWidth={2.5} />
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[18px] md:text-[19px] tracking-tight text-black antialiased">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Link href="/" className="flex items-center gap-2 group">
+                <div className="bg-black p-1.5 rounded-xl transition-transform group-hover:rotate-6">
+                  <Layers className="h-5 w-5 text-white" strokeWidth={2.5} />
+                </div>
+                <span className="font-bold text-[18px] md:text-[19px] tracking-tight text-black antialiased hover:opacity-80 transition-opacity">
                   Flowboard
                 </span>
+              </Link>
+              <div className="flex items-center gap-2">
                 <span className="text-[15px] text-slate-300 font-light hidden sm:inline-block">/</span>
-                <span className="text-[14px] text-slate-500 font-medium hidden sm:inline-block tracking-tight">
+                <Link href="/dashboard" className="text-[14px] text-slate-500 font-medium hidden sm:inline-block tracking-tight hover:text-black transition-colors">
                   Dashboard
-                </span>
+                </Link>
               </div>
-            </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

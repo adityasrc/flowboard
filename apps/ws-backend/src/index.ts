@@ -6,7 +6,7 @@ import { client } from "@repo/db/client";
 const port = process.env.PORT ? Number(process.env.PORT) : 8081;
 
 const wss = new WebSocketServer({ port });
-
+// WebSockets are "push" (server can send data whenever it wants).
 // console.log("Ws Server started on 8081");
 
 interface User {
@@ -18,21 +18,17 @@ interface User {
 const users: User[] = [];
 
 function checkUser(token: string): string | null {
-  // console.log("1. Checking token:", token); // Is the token arriving?
-
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    // console.log("2. Decoded Token:", decoded); // What is inside?
 
     if (!decoded || !decoded.id) {
-      console.log("3. Failed: ID is missing in token");
+      console.log("Failed: ID is missing in token");
       return null;
     }
 
-    // console.log("4. Success! User ID:", decoded.id);
     return String(decoded.id);
+
   } catch (e) {
-    // console.log("3. Failed: Verify crashed. Error:", e);
     return null;
   }
 }
@@ -42,38 +38,43 @@ wss.on("connection", function connection(ws, request) {
   if (!url) {
     return;
   }
-  const queryParams = new URLSearchParams(url.split("?")[1]);
+  const queryParams = new URLSearchParams(url.split("?")[1]); //to extract jwt form url
   const token = queryParams.get("token") || "";
 
-  const userIdOrNull = checkUser(token);
-  if (!userIdOrNull) {
+  const userId = checkUser(token);
+  if (!userId) {
     ws.close();
     return;
   }
 
-  const userId = userIdOrNull;
-
   users.push({
-    //we will push the user to out array
+    //we will push the user to our array
     userId,
     rooms: [],
     ws,
   });
 
+
   ws.on("close", ()=>{
-    const index = users.findIndex((user) => user.ws === ws);
+    const index = users.findIndex(function(user){
+      return user.ws === ws
+    })
+
     if(index != -1){
       users.splice(index, 1)
     }
   })
 
+
+
   ws.on("message", async function message(data) {
     try {
       let parsedData;
       if (typeof data !== "string") {
+        //  Data ko string mein convert karna zaroori hai
         parsedData = JSON.parse(data.toString());
+
       } else {
-        // 1. Data ko string mein convert karna zaroori hai
         parsedData = JSON.parse(data);
       }
 
@@ -88,16 +89,14 @@ wss.on("connection", function connection(ws, request) {
         if (!user) {
           return;
         }
-        //Logic was inverted! We want to KEEP rooms that are NOT the one we left
         user.rooms = user.rooms.filter((x) => x !== parsedData.roomId);
         console.log("Left room:", parsedData.roomId);
       }
 
-      if (parsedData.type === "chat") {
+      if (parsedData.type === "create_shape") {
         const roomSlug = parsedData.roomId;
         const message = parsedData.message;
 
-        // console.log("Attempting to send chat to room:", roomId);
         try {
           const room = await client.room.findUnique({
             where: {
@@ -107,8 +106,24 @@ wss.on("connection", function connection(ws, request) {
 
           if (!room) {
             console.log("Room not found in DB");
-            return; // FIX ADDED: Stop execution if room is missing
+            return;
           }
+
+          //queue is the better approach
+
+          users.forEach((user) => {
+            if (user.rooms.includes(roomSlug)) {
+              //  Check against slug, not object
+              user.ws.send(
+                JSON.stringify({
+                  type: "create_shape",
+                  message: message,
+                  roomId: roomSlug, // Send back the slug so client knows where to put it
+                }),
+              );
+              console.log("Sent message to user");
+            }
+          });
 
           await client.chat.create({
             data: {
@@ -117,26 +132,11 @@ wss.on("connection", function connection(ws, request) {
               userId: Number(userId),
             },
           });
-          //first add in db then brodcast
-          //queue is the better approach
-
-          users.forEach((user) => {
-            // Check: Is the user actually in this room
-            if (user.rooms.includes(roomSlug)) {
-              //  Check against slug, not object
-              user.ws.send(
-                JSON.stringify({
-                  type: "chat",
-                  message: message,
-                  roomId: roomSlug, // Send back the slug so client knows where to put it
-                }),
-              );
-              console.log("➡️ Sent message to user");
-            }
-          }); // FIX ADDED: Correct closing for forEach
+          
         } catch (e) {
           console.log("DB Error:", e);
         }
+
       } else if (parsedData.type === "delete_shape") {
         const roomSlug = parsedData.roomId;
         const shapeId = parsedData.id;
@@ -176,6 +176,4 @@ wss.on("connection", function connection(ws, request) {
       return;
     }
   });
-
-  //auth for room
 });
