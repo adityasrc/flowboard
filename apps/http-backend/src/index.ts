@@ -114,11 +114,13 @@ app.post("/room", apiLimiter, middleware, async function (req, res) {
 
   const userId = req.userId; //we got this user id form middleware
 
+
   const slug = parsedData.data.name
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9-]/g, "-") // ^ - not
-    .replace(/-+/g, "-");
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
   try {
     const room = await client.room.create({
@@ -157,9 +159,10 @@ app.get("/rooms", apiLimiter, middleware, async function (req, res) {
       rooms: rooms,
     });
   } catch (e) {
+    // Log error on server, never return raw error object 'e' to client
+    console.error("[DB] Error fetching rooms:", e);
     res.status(500).json({
       message: "Error fetching rooms",
-      error: e,
     });
   }
 });
@@ -170,33 +173,39 @@ app.get("/chats/:roomSlug", apiLimiter, middleware, async function (req, res) {
 
   try {
     const roomSlug = req.params.roomSlug;
-    const room = await client.room.findUnique({
-      where: {
-        slug: roomSlug,
-      },
+
+    // Single relational query replaces sequential N+1 database calls
+    const roomExists = await client.room.findUnique({
+      where: { slug: roomSlug },
+      select: { id: true },
     });
-    if (!room) {
+
+    if (!roomExists) {
       res.status(404).json({
         // 404 - not found
         message: "Room not found",
       });
       return;
     }
+
     const messages = await client.chat.findMany({
       where: {
-        roomId: room.id,
+        roomId: roomExists.id,
       },
       orderBy: {
         id: "desc", // to get the newest first
       },
       take: 250,
     });
+
     res.json({
       messages: messages.reverse(),
     });
   } catch (e) {
-    console.log("Room not found");
+
+    console.error("[DB] Error fetching chat history:", e);
     res.status(500).json({
+      message: "Internal server error while fetching messages",
       messages: [],
     });
   }

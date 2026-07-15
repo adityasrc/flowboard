@@ -43,17 +43,16 @@ function checkUser(token: string): string | null {
     }
 
     return String(decoded.id);
-
   } catch (e) {
     return null;
   }
 }
 
 wss.on("connection", function connection(ws, request) {
-  // Read the JWT from the Sec-WebSocket-Protocol header instead of the URL
-  // query string — URL params are logged verbatim by every reverse proxy.
-  const rawProtocol = request.headers["sec-websocket-protocol"] || "";
-  const token = rawProtocol.split(",")[0].trim();
+  const headerValue = request.headers["sec-websocket-protocol"];
+  const rawProtocol = Array.isArray(headerValue) ? headerValue[0] : (headerValue || "");
+
+  const token = rawProtocol.split(",")[0]?.trim() || "";
 
   const userId = checkUser(token);
   if (!userId) {
@@ -94,23 +93,33 @@ wss.on("connection", function connection(ws, request) {
       }
 
       if (parsedData.type === "join_room") {
+        const roomSlug = parsedData.roomId;
+        if (!roomSlug || typeof roomSlug !== "string") return;
+
         const user = users.find((x) => x.ws === ws);
-        user?.rooms.push(parsedData.roomId);
-        console.log("Joined room:", parsedData.roomId);
+        // Prevent duplicate room subscriptions from causing repeated message broadcasts
+        if (user && !user.rooms.includes(roomSlug)) {
+          user.rooms.push(roomSlug);
+          console.log("Joined room:", roomSlug);
+        }
       }
 
       if (parsedData.type === "leave_room") {
+        const roomSlug = parsedData.roomId;
+        if (!roomSlug || typeof roomSlug !== "string") return;
+
         const user = users.find((x) => x.ws === ws);
         if (!user) {
           return;
         }
-        user.rooms = user.rooms.filter((x) => x !== parsedData.roomId);
-        console.log("Left room:", parsedData.roomId);
+        user.rooms = user.rooms.filter((x) => x !== roomSlug);
+        console.log("Left room:", roomSlug);
       }
 
       if (parsedData.type === "create_shape") {
         const roomSlug = parsedData.roomId;
         const message = parsedData.message;
+        if (!roomSlug || typeof roomSlug !== "string" || !message) return;
 
         try {
           // Database connection pool exhaust hone se bachane ke liye pehle local memory (cache) check karo
@@ -131,7 +140,10 @@ wss.on("connection", function connection(ws, request) {
           }
 
           users.forEach((user) => {
-            if (user.rooms.includes(roomSlug)) {
+            if (
+              user.rooms.includes(roomSlug) &&
+              user.ws.readyState === WebSocket.OPEN
+            ) {
               user.ws.send(
                 JSON.stringify({
                   type: "create_shape",
@@ -154,41 +166,33 @@ wss.on("connection", function connection(ws, request) {
               },
             })
             .catch((e) => console.error("[DB] chat.create failed:", e));
-          
         } catch (e) {
           console.log("DB Error:", e);
         }
-
       } else if (parsedData.type === "delete_shape") {
         const roomSlug = parsedData.roomId;
         const shapeId = parsedData.id;
+        if (!roomSlug || typeof roomSlug !== "string" || !shapeId) return;
 
         try {
           let roomId = roomCache[roomSlug];
 
           if (!roomId) {
             const room = await client.room.findUnique({
-              where: { slug: roomSlug }
+              where: { slug: roomSlug },
             });
             if (!room) return;
             roomId = room.id;
             roomCache[roomSlug] = room.id;
           }
 
-          // Interview Knowledge Note: String text ke andar Prisma ka 'contains' SQL me LIKE '%shapeId%' banta hai.
-          // Iska matlab ye poori Database Table ko line-by-line read (scan) karta hai O(N) time me.
-          // Abhi demo ke liye theek hai but production me shapeId ko native DB Column banana padega indexing ke liye.
-          await client.chat.deleteMany({
-            where: {
-              roomId: roomId,
-              message: {
-                contains: shapeId,
-              },
-            },
-          });
-
+          // Optimistic UI Update: Broadcast deletion immediately before DB operation
+          // so erasing shapes feels just as instant as drawing them.
           users.forEach((user) => {
-            if (user.rooms.includes(roomSlug)) {
+            if (
+              user.rooms.includes(roomSlug) &&
+              user.ws.readyState === WebSocket.OPEN
+            ) {
               user.ws.send(
                 JSON.stringify({
                   type: "delete_shape",
@@ -198,8 +202,22 @@ wss.on("connection", function connection(ws, request) {
               );
             }
           });
+
+          // Interview Knowledge Note: String text ke andar Prisma ka 'contains' SQL me LIKE '%shapeId%' banta hai.
+          // Iska matlab ye poori Database Table ko line-by-line read (scan) karta hai O(N) time me.
+          // Abhi demo ke liye theek hai but production me shapeId ko native DB Column banana padega indexing ke liye.
+          client.chat
+            .deleteMany({
+              where: {
+                roomId: roomId,
+                message: {
+                  contains: String(shapeId),
+                },
+              },
+            })
+            .catch((e) => console.error("[DB] chat.deleteMany failed:", e));
         } catch (e) {
-            console.error(e);
+          console.error(e);
         }
       }
     } catch (e) {
@@ -213,7 +231,8 @@ wss.on("connection", function connection(ws, request) {
 // Any client that does not pong back before the next cycle is considered a
 // ghost connection and is forcefully terminated + removed from users[].
 const heartbeat = setInterval(() => {
-  users.forEach((user) => {
+  // Use a shallow copy [...users] to prevent array mutation bugs during splice/terminate
+  [...users].forEach((user) => {
     if (!user.isAlive) {
       // No pong received since last ping — terminate the stale connection.
       user.ws.terminate();

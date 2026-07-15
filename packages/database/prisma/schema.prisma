@@ -1,46 +1,46 @@
 generator client {
   provider = "prisma-client-js"
-  // engineType = "node" optional for v6
-  
 }
 
 datasource db {
   provider = "postgresql"
-  
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id        Int       @id @default(autoincrement())
-  username  String    @unique
-  name      String
-  email     String    @unique
-  password  String
-  photo     String?
-  //photo is optional and we use ? to make something optional
-  rooms     Room[]
-  chats     Chat[]
+  id       Int     @id @default(autoincrement())
+  username String  @unique
+  name     String
+  email    String  @unique
+  password String
+  photo    String?
+
+  rooms    Room[]
+  chats    Chat[]
 }
 
 model Room {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  createdAt   DateTime  @default(now())
-  adminId     Int
-  admin       User      @relation(fields: [adminId], references: [id])
-  chats       Chat[]
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  adminId   Int
+
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  chats     Chat[]
+
+  @@index([adminId])
 }
 
 model Chat {
-  id         Int        @id @default(autoincrement())
-  roomId     Int      
-  message    String     //{type: "Rect", x: 1, y:1, w: 10, h: 10}
-  userId     Int
-  user       User       @relation(fields: [userId], references: [id])
-  room       Room       @relation(fields: [roomId], references: [id])
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  userId    Int
+  message   String   // Stores serialized graphical canvas elements (e.g., JSON string of { type: "Rect", x: 1, y: 1, w: 10, h: 10 })
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([userId])
 }
-
-
-//future scope, create model for message
-
