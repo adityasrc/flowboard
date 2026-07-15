@@ -22,11 +22,7 @@ export default function Index() {
       <main className="flex-1">
         <section className="pt-24 pb-8 md:pt-32 md:pb-12 px-6 max-w-2xl md:max-w-4xl mx-auto text-center flex flex-col items-center">
           
-          <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[13px] font-medium text-slate-600 mb-8">
-            <span className="mr-2">v1.0</span>
-            <div className="w-px h-3 bg-slate-200 mx-2"></div>
-            <span>Real-Time Portfolio Project</span>
-          </div>
+
 
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-black leading-[1.1] mb-6">
             Real-time whiteboarding,<br className="hidden md:block" />
@@ -88,7 +84,7 @@ export default function Index() {
               </div>
             </div>
             <p className="text-[13px] text-slate-400 font-medium tracking-tight">
-              Actual app UI — no simulated mockups.
+              Actual app UI, not a mockup.
             </p>
           </div>
 
