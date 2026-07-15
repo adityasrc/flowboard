@@ -5,12 +5,26 @@ import { client } from "@repo/db/client";
 
 const port = process.env.PORT ? Number(process.env.PORT) : 8081;
 
-const wss = new WebSocketServer({ port });
+// Interval at which the server sends a ping to every connected client.
+// If the client does not pong back before the next interval, it is considered
+// dead and its socket is terminated — preventing silent ghost connections.
+const HEARTBEAT_INTERVAL_MS = 30_000;
+
+// Accept any offered sub-protocol so the browser does not immediately close
+// the connection. The first protocol value is the JWT token sent by the client.
+const wss = new WebSocketServer({
+  port,
+  handleProtocols: (protocols) => {
+    const [first] = protocols;
+    return first ?? false;
+  },
+});
 
 interface User {
   ws: WebSocket;
   rooms: string[];
   userId: string;
+  isAlive: boolean; // tracks whether the client responded to the last ping
 }
 
 const users: User[] = [];
@@ -36,12 +50,10 @@ function checkUser(token: string): string | null {
 }
 
 wss.on("connection", function connection(ws, request) {
-  const url = request.url;
-  if (!url) {
-    return;
-  }
-  const queryParams = new URLSearchParams(url.split("?")[1]); 
-  const token = queryParams.get("token") || "";
+  // Read the JWT from the Sec-WebSocket-Protocol header instead of the URL
+  // query string — URL params are logged verbatim by every reverse proxy.
+  const rawProtocol = request.headers["sec-websocket-protocol"] || "";
+  const token = rawProtocol.split(",")[0].trim();
 
   const userId = checkUser(token);
   if (!userId) {
@@ -53,17 +65,24 @@ wss.on("connection", function connection(ws, request) {
     userId,
     rooms: [],
     ws,
+    isAlive: true,
   });
 
-  ws.on("close", ()=>{
-    const index = users.findIndex(function(user){
-      return user.ws === ws
-    })
+  // Mark the connection as alive each time the client pongs back.
+  ws.on("pong", () => {
+    const user = users.find((u) => u.ws === ws);
+    if (user) user.isAlive = true;
+  });
 
-    if(index != -1){
-      users.splice(index, 1)
+  ws.on("close", () => {
+    const index = users.findIndex(function (user) {
+      return user.ws === ws;
+    });
+
+    if (index !== -1) {
+      users.splice(index, 1);
     }
-  })
+  });
 
   ws.on("message", async function message(data) {
     try {
@@ -123,13 +142,18 @@ wss.on("connection", function connection(ws, request) {
             }
           });
 
-          await client.chat.create({
-            data: {
-              roomId: roomId,
-              message,
-              userId: Number(userId),
-            },
-          });
+          // Fire-and-forget: broadcast has already happened above.
+          // We do NOT await here — a slow Neon DB round-trip must never stall
+          // the event loop and freeze the canvas for all connected users.
+          client.chat
+            .create({
+              data: {
+                roomId: roomId,
+                message,
+                userId: Number(userId),
+              },
+            })
+            .catch((e) => console.error("[DB] chat.create failed:", e));
           
         } catch (e) {
           console.log("DB Error:", e);
@@ -184,3 +208,21 @@ wss.on("connection", function connection(ws, request) {
     }
   });
 });
+
+// Heartbeat: every HEARTBEAT_INTERVAL_MS seconds, ping all clients.
+// Any client that does not pong back before the next cycle is considered a
+// ghost connection and is forcefully terminated + removed from users[].
+const heartbeat = setInterval(() => {
+  users.forEach((user) => {
+    if (!user.isAlive) {
+      // No pong received since last ping — terminate the stale connection.
+      user.ws.terminate();
+      return;
+    }
+    user.isAlive = false; // reset; will be flipped back to true on pong
+    user.ws.ping();
+  });
+}, HEARTBEAT_INTERVAL_MS);
+
+// Clean up the interval when the WSS itself is closed (e.g., on shutdown).
+wss.on("close", () => clearInterval(heartbeat));
