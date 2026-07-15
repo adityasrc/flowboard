@@ -5,16 +5,13 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc -b",
-    "//build-script-info": "converts ts code into js code",
     "start": "node dist/index.js",
-    "//start-script-info": "this assumes that final code will be in dist folder - index.js",
-    "dev": "npm run build && npm run start"
+    "dev": "pnpm run build && pnpm run start"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/ws": "^8.18.1",
-    "@repo/backend-common" : "workspace:*",
-    "@repo/db": "workspace:*"
+    "@types/jsonwebtoken": "^9.0.10"
   },
   "keywords": [],
   "author": "",
@@ -22,7 +19,7 @@
   "type": "commonjs",
   "dependencies": {
     "@repo/db": "workspace:*",
-    "@types/jsonwebtoken": "^9.0.10",
+    "@repo/backend-common": "workspace:*",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.18.3"
   }

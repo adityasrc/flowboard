@@ -5,15 +5,13 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc -b",
-    "//build-script-info": "converts ts code into js code",
     "start": "node dist/index.js",
-    "//start-script-info": "this assumes that final code will be in dist folder - index.js",
-    "dev": "npm run build && npm run start"
+    "dev": "pnpm run build && pnpm run start"
   },
   "devDependencies": {
-    "@repo/backend-common": "workspace:*",
-    "@repo/common": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.3"
@@ -23,9 +21,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@repo/backend-common": "workspace:*",
+    "@repo/common": "workspace:*",
     "@repo/db": "workspace:*",
-    "@types/bcrypt": "^6.0.0",
-    "@types/cors": "^2.8.19",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
