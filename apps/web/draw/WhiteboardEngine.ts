@@ -78,6 +78,12 @@ export class WhiteboardEngine {
   private rafId: number | null = null; //requestanimationframe id
 
   private selectedTool: Tool = "circle";
+  private myShapeIds: Set<string> = new Set();
+  // Only points farther than PENCIL_MIN_DISTANCE from the previous point are
+  // added to currentPath. This trims redundant collinear samples at no visible
+  // quality cost and keeps the WS payload lean.
+  private lastPencilPoint: [number, number] | null = null;
+  private readonly PENCIL_MIN_DISTANCE = 5;
   private getCoordinates(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -276,18 +282,25 @@ export class WhiteboardEngine {
   }
 
   undo() {
-    if (this.shapes.length > 0) {
-      let lastShape = this.shapes.pop()!;
-      this.redoStack.push(lastShape);
-      this.existingShapes();
+    // Walk backwards through the shared shapes array and find the last shape
+    // that was drawn by THIS user. Other collaborators' shapes are skipped,
+    // so pressing Ctrl+Z can never destroy someone else's work.
+    for (let i = this.shapes.length - 1; i >= 0; i--) {
+      if (this.myShapeIds.has(this.shapes[i].id)) {
+        const [removed] = this.shapes.splice(i, 1);
+        this.myShapeIds.delete(removed.id);
+        this.redoStack.push(removed);
+        this.existingShapes();
 
-      this.socket.send(
-        JSON.stringify({
-          type: "delete_shape", // Naya message type
-          id: lastShape.id, // Kis id ko mitaana hai
-          roomId: this.roomId,
-        }),
-      );
+        this.socket.send(
+          JSON.stringify({
+            type: "delete_shape",
+            id: removed.id,
+            roomId: this.roomId,
+          }),
+        );
+        return; // only undo one shape per keypress
+      }
     }
   }
 
@@ -388,8 +401,8 @@ export class WhiteboardEngine {
     this.currentSeed = rough.newSeed();
     const selectedTool = this.selectedTool;
     if (selectedTool === "pencil") {
-      this.currentPath = [];
       this.currentPath = [[x, y]];
+      this.lastPencilPoint = [x, y]; // reset throttle anchor
     }
 
     if (selectedTool === "eraser") {
@@ -453,6 +466,7 @@ export class WhiteboardEngine {
           };
 
           this.shapes.push(textShape);
+          this.myShapeIds.add(textShape.id); // track for user-scoped undo
           this.existingShapes();
 
           if (this.socket.readyState === WebSocket.OPEN) {
@@ -566,6 +580,9 @@ export class WhiteboardEngine {
     }
 
     this.shapes.push(shape);
+    // Track this shape as belonging to the current user so undo only
+    // removes the calling user's own work, not a collaborator's.
+    this.myShapeIds.add(shape.id);
 
     this.redoStack = []; //naya shape bante hi redo stack khali karna hai.
     
@@ -588,9 +605,15 @@ export class WhiteboardEngine {
 
       const { x, y } = this.getCoordinates(e);
 
-      // pencil ke points miss na ho isliye isko pehle hi array me daal denge
+      // Only add a pencil point if it is far enough from the last recorded
+      // point. This reduces coordinate noise and shrinks the final payload.
       if (this.selectedTool === "pencil") {
-        this.currentPath.push([x, y]);
+        const lp = this.lastPencilPoint;
+        const dist = lp ? Math.hypot(x - lp[0], y - lp[1]) : Infinity;
+        if (dist >= this.PENCIL_MIN_DISTANCE) {
+          this.currentPath.push([x, y]);
+          this.lastPencilPoint = [x, y];
+        }
       }
 
       // agar purana frame pending hai toh usko cancel karenge vibration rokne ke liye
