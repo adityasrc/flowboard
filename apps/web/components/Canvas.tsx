@@ -1,4 +1,5 @@
 "use client";
+
 import { IconButton } from "./IconButton";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -47,32 +48,36 @@ export type Tool =
 export function Canvas({ roomId, socket }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const router = useRouter();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gameRef = useRef<WhiteboardEngine | null>(null);
+  const [selectedTool, setSelectedTool] = useState<Tool>("rect");
 
+  // Handles solid white background export so downloaded PNGs aren't transparent/black
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const image = canvas.toDataURL("image/png");
-    //image/png is default type
-    //type is optional
-    // it returns a string containing the requested data_url
+    // Create a temporary canvas to merge white background + drawing
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+    if (!tempCtx) return;
 
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+
+    // Fill white background
+    tempCtx.fillStyle = "#ffffff";
+    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+    // Draw the actual drawing over the white background
+    tempCtx.drawImage(canvas, 0, 0);
+
+    const image = tempCanvas.toDataURL("image/png");
     const link = document.createElement("a");
     link.href = image;
-    link.download = `my-drawing-${roomId}.png`;
-
+    link.download = `flowboard-${roomId}.png`;
     link.click();
   };
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // game instance ko hold karega
-  const gameRef = useRef<WhiteboardEngine | null>(null);
-
-  //pointer to the canvas
-
-  // const [game, setGame] = useState<Game>();
-  const [selectedTool, setSelectedTool] = useState<Tool>("rect");
 
   useEffect(() => {
     gameRef.current?.setTool(selectedTool);
@@ -80,23 +85,26 @@ export function Canvas({ roomId, socket }: CanvasProps) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    //accessing the canvas element
     if (!canvas) return;
 
+    // High-DPI / Retina display scaling prevents blurry lines on MacBooks and 4K monitors
     const handleResize = () => {
-      canvas.width = window.innerWidth; //make canvas dimension  = windwo dimension
-      canvas.height = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.scale(dpr, dpr);
+
       gameRef.current?.existingShapes();
     };
-    canvas.width = window.innerWidth; //make canvas dimension  = windwo dimension
-    canvas.height = window.innerHeight; // use windows hook to handle resizing of window
 
-    // console.log("Canvas Init with:", { roomId, socket });
+    handleResize(); // Initialize sizes immediately
 
     const game = new WhiteboardEngine(canvas, roomId, socket);
-
     game.setTool(selectedTool);
-
     gameRef.current = game;
 
     window.addEventListener("resize", handleResize);
@@ -106,23 +114,14 @@ export function Canvas({ roomId, socket }: CanvasProps) {
       game.destroy();
       gameRef.current = null;
     };
-
-    // if (socket && roomId) {
-    //   const g = new Game(canvas, roomId, socket);
-    //   setGame(g);
-
-    //   return () => {
-    //     g.destroy();
-    //   };
-    // }
   }, [roomId, socket]);
 
   return (
     <div
-      className="h-screen w-full overflow-hidden"
+      className="h-screen w-screen overflow-hidden relative select-none touch-none"
       style={{
         backgroundColor: "#ffffff",
-        backgroundImage: "radial-gradient(#e5e7eb 1px, transparent 1px)", //dark gray
+        backgroundImage: "radial-gradient(#e5e7eb 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }}
     >
@@ -132,22 +131,21 @@ export function Canvas({ roomId, socket }: CanvasProps) {
             <DialogTitle className="text-lg font-semibold tracking-tight">
               Leave Room?
             </DialogTitle>
-            <DialogDescription className="text-[14px] text-[#666666] mt-1.5">
-              Are you sure you want to leave? Make sure you have saved your work
-              before exiting.
+            <DialogDescription className="text-[14px] text-slate-500 mt-1.5">
+              Are you sure you want to leave? Make sure you have saved your work before exiting.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-2 sm:space-x-3">
             <button
+              type="button"
               onClick={() => setShowLeaveDialog(false)}
               className="inline-flex items-center justify-center border border-slate-200 bg-transparent hover:bg-slate-50 text-slate-900 text-[13px] font-medium h-9 px-4 rounded-md cursor-pointer transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={() => {
-                router.push("/dashboard");
-              }}
+              type="button"
+              onClick={() => router.push("/dashboard")}
               className="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white text-[13px] font-medium h-9 px-4 rounded-md shadow-sm cursor-pointer transition-colors"
             >
               Leave
@@ -156,7 +154,8 @@ export function Canvas({ roomId, socket }: CanvasProps) {
         </DialogContent>
       </Dialog>
 
-      <canvas ref={canvasRef} className="bg-transparent" />
+      <canvas ref={canvasRef} className="bg-transparent block absolute inset-0" />
+
       <Topbar
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
@@ -185,9 +184,9 @@ function Topbar({
   onDownload: () => void;
 }) {
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white px-2 py-1.5 rounded-xl shadow-md border border-gray-100">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-xl shadow-md border border-slate-200/80">
       <div className="flex gap-1 items-center">
-        
+
         <IconButton
           onClick={() => setSelectedTool("pencil")}
           activated={selectedTool === "pencil"}
@@ -227,11 +226,10 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("text")}
           activated={selectedTool === "text"}
-          icon={<Type size={18} />} 
+          icon={<Type size={18} />}
         />
 
-        <div className="w-px h-4 bg-gray-300 mx-1"></div>
-
+        <div className="w-px h-4 bg-slate-200 mx-1" />
 
         <IconButton
           onClick={() => setSelectedTool("eraser")}
@@ -251,9 +249,8 @@ function Topbar({
           icon={<Redo size={18} />}
         />
 
-        <div className="w-px h-4 bg-gray-300 mx-1"></div>
+        <div className="w-px h-4 bg-slate-200 mx-1" />
 
-        
         <IconButton
           onClick={onDownload}
           activated={false}

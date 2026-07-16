@@ -1,65 +1,67 @@
 import { getExistingShapes } from "./http";
 import { Tool } from "../components/Canvas";
 import rough from "roughjs";
+import type { RoughCanvas } from "roughjs/bin/canvas";
 
 type Shape =
   | {
-      type: "Rect"; //hardcoded the types of shapes
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      seed: number;
-      id: string;
-    }
+    type: "Rect";
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    seed: number;
+    id: string;
+  }
   | {
-      type: "Circle";
-      centerX: number;
-      centerY: number;
-      radius: number;
-      seed: number;
-      id: string;
-    }
+    type: "Circle";
+    centerX: number;
+    centerY: number;
+    radius: number;
+    seed: number;
+    id: string;
+  }
   | {
-      type: "Pencil";
-      points: [number, number][]; // array of [x, y] (2d array)
-      seed: number;
-      id: string;
-    }
+    type: "Pencil";
+    points: [number, number][];
+    seed: number;
+    id: string;
+  }
   | {
-      type: "Line";
-      startX: number;
-      startY: number;
-      endX: number;
-      endY: number;
-      seed: number;
-      id: string;
-    }
+    type: "Line";
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    seed: number;
+    id: string;
+  }
   | {
-      type: "Arrow";
-      startX: number;
-      startY: number;
-      endX: number;
-      endY: number;
-      seed: number;
-      id: string;
-    }
+    type: "Arrow";
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    seed: number;
+    id: string;
+  }
   | {
-      type: "Diamond";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      seed: number;
-      id: string;
-    } | {
-      type: "Text";
-      text: string;
-      x: number;
-      y: number;
-      seed: number;
-      id: string;
-    };
+    type: "Diamond";
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    seed: number;
+    id: string;
+  }
+  | {
+    type: "Text";
+    text: string;
+    x: number;
+    y: number;
+    seed: number;
+    id: string;
+  };
 
 export class WhiteboardEngine {
   private canvas: HTMLCanvasElement;
@@ -68,22 +70,27 @@ export class WhiteboardEngine {
   private roomId: string;
   private socket: WebSocket;
   private isClicked: boolean;
-  private rc: any;
+  private rc: RoughCanvas;
   private currentSeed = 0;
   private currentPath: [number, number][] = [];
   private startX = 0;
   private startY = 0;
   private tolerance = 5;
   private redoStack: Shape[];
-  private rafId: number | null = null; //requestanimationframe id
+  private rafId: number | null = null;
 
   private selectedTool: Tool = "circle";
   private myShapeIds: Set<string> = new Set();
+
+  // Tracks any active text box to prevent orphaned DOM elements on page navigation
+  private activeTextInput: HTMLInputElement | null = null;
+
   // Only points farther than PENCIL_MIN_DISTANCE from the previous point are
   // added to currentPath. This trims redundant collinear samples at no visible
   // quality cost and keeps the WS payload lean.
   private lastPencilPoint: [number, number] | null = null;
   private readonly PENCIL_MIN_DISTANCE = 5;
+
   private getCoordinates(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -93,7 +100,7 @@ export class WhiteboardEngine {
 
   private isPointInShapes(x: number, y: number, shape: Shape): boolean {
     if (shape.type === "Rect" || shape.type === "Diamond") {
-      const minX = Math.min(shape.x, shape.x + shape.width); //to safeguard reverse drag using min max
+      const minX = Math.min(shape.x, shape.x + shape.width);
       const maxX = Math.max(shape.x, shape.x + shape.width);
 
       const minY = Math.min(shape.y, shape.y + shape.height);
@@ -110,7 +117,6 @@ export class WhiteboardEngine {
       const distance = Math.sqrt(
         Math.pow(x - shape.centerX, 2) + Math.pow(y - shape.centerY, 2),
       );
-      //pythagoras theorem
       return Math.abs(shape.radius) >= distance;
     }
 
@@ -159,16 +165,16 @@ export class WhiteboardEngine {
       const dy = y - yy;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if( distance <= this.tolerance){
-        return true; // line ke liye
+      if (distance <= this.tolerance) {
+        return true;
       }
 
-      if(shape.type === "Arrow"){
+      if (shape.type === "Arrow") {
         const distanceToTip = Math.sqrt(
-          Math.pow(x-shape.endX, 2) + Math.pow(y - shape.endY, 2)
+          Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)
         );
 
-        if(distanceToTip <= 15){
+        if (distanceToTip <= 15) {
           return true;
         }
       }
@@ -194,9 +200,8 @@ export class WhiteboardEngine {
   ) {
     this.rc.line(startX, startY, endX, endY, { stroke: "black", seed: seed });
 
-    //(Teer ka math)
     const angle = Math.atan2(endY - startY, endX - startX);
-    const headLength = 15; // arrow ke head ka size
+    const headLength = 15;
 
     const p1X = endX - headLength * Math.cos(angle - Math.PI / 6);
     const p1Y = endY - headLength * Math.sin(angle - Math.PI / 6);
@@ -207,34 +212,42 @@ export class WhiteboardEngine {
     this.rc.line(endX, endY, p1X, p1Y, { stroke: "black", seed: seed });
     this.rc.line(endX, endY, p2X, p2Y, { stroke: "black", seed: seed });
   }
+
   constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
-    // ! made type error go why?
-    // we are telling the ts that we know ctx wont be null in any case
     this.roomId = roomId;
     this.socket = socket;
     this.isClicked = false;
     this.shapes = [];
-    this.init();
-    this.initHandlers();
-    this.initMouseHandler();
     this.rc = rough.canvas(canvas);
     this.redoStack = [];
 
-    window.addEventListener("keydown", this.handleKeyDown);
+    this.init();
+    this.initHandlers();
+    this.initMouseHandler();
 
-    //constructors cant be async
+    window.addEventListener("keydown", this.handleKeyDown);
   }
 
   destroy() {
     this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
-
-    this.canvas.removeEventListener("mouseup", this.mouseUpHandler);
-
     this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
 
+    // Cleanly removes window listener to prevent sticky drag bugs
+    window.removeEventListener("mouseup", this.mouseUpHandler);
     window.removeEventListener("keydown", this.handleKeyDown);
+
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+
+    // Wipes any active text input box if user navigates away while typing
+    if (this.activeTextInput) {
+      this.activeTextInput.remove();
+      this.activeTextInput = null;
+    }
   }
 
   setTool(
@@ -267,10 +280,10 @@ export class WhiteboardEngine {
         const incomingShape = parsedData.shape;
         const shapeExists = this.shapes.find(
           (shape) => shape.id === incomingShape.id,
-        ); // to prevent double renderign of shapes
+        );
 
         if (!shapeExists) {
-          this.shapes.push(parsedData.shape); //shape is stored as text
+          this.shapes.push(parsedData.shape);
           this.existingShapes();
         }
       } else if (message.type == "delete_shape") {
@@ -282,9 +295,6 @@ export class WhiteboardEngine {
   }
 
   undo() {
-    // Walk backwards through the shared shapes array and find the last shape
-    // that was drawn by THIS user. Other collaborators' shapes are skipped,
-    // so pressing Ctrl+Z can never destroy someone else's work.
     for (let i = this.shapes.length - 1; i >= 0; i--) {
       if (this.myShapeIds.has(this.shapes[i].id)) {
         const [removed] = this.shapes.splice(i, 1);
@@ -299,7 +309,7 @@ export class WhiteboardEngine {
             roomId: this.roomId,
           }),
         );
-        return; // only undo one shape per keypress
+        return;
       }
     }
   }
@@ -323,31 +333,15 @@ export class WhiteboardEngine {
   }
 
   existingShapes() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); //canvas clear karenge
-
-    //canvas ko black karenge
-    // this.ctx.fillStyle = "#ffffff";
-    // this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.shapes.forEach((shape) => {
-      // this.ctx.strokeStyle = "black";
       if (shape.type === "Rect") {
-        // this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
         this.rc.rectangle(shape.x, shape.y, shape.width, shape.height, {
           stroke: "black",
           seed: shape.seed,
         });
       } else if (shape.type === "Circle") {
-        // this.ctx.beginPath();
-        // this.ctx.arc(
-        //   shape.centerX,
-        //   shape.centerY,
-        //   Math.abs(shape.radius),
-        //   0,
-        //   Math.PI * 2,
-        // );
-        // this.ctx.stroke();
-        // this.ctx.closePath();
         this.rc.circle(
           shape.centerX,
           shape.centerY,
@@ -369,8 +363,7 @@ export class WhiteboardEngine {
           shape.endY,
           shape.seed,
         );
-      }
-      else if(shape.type === "Diamond"){
+      } else if (shape.type === "Diamond") {
         const midX = shape.x + shape.width / 2;
         const midY = shape.y + shape.height / 2;
 
@@ -379,12 +372,11 @@ export class WhiteboardEngine {
           [shape.x + shape.width, midY],
           [midX, shape.y + shape.height],
           [shape.x, midY]
-        ], { 
-            stroke: "black", 
-            seed: shape.seed, 
+        ], {
+          stroke: "black",
+          seed: shape.seed,
         });
-
-      }else if(shape.type === "Text"){
+      } else if (shape.type === "Text") {
         this.ctx.font = "24px sans-serif";
         this.ctx.textBaseline = "top";
         this.ctx.fillStyle = "black";
@@ -400,22 +392,23 @@ export class WhiteboardEngine {
     this.startY = y;
     this.currentSeed = rough.newSeed();
     const selectedTool = this.selectedTool;
+
     if (selectedTool === "pencil") {
       this.currentPath = [[x, y]];
-      this.lastPencilPoint = [x, y]; // reset throttle anchor
+      this.lastPencilPoint = [x, y];
     }
 
     if (selectedTool === "eraser") {
       for (let i = this.shapes.length - 1; i >= 0; i--) {
         const shape = this.shapes[i];
         if (this.isPointInShapes(x, y, shape)) {
-          this.shapes.splice(i, 1); //splice (index, count(number of element to be removed))
+          this.shapes.splice(i, 1);
           this.existingShapes();
           if (this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(
               JSON.stringify({
-                type: "delete_shape", // Naya message type
-                id: shape.id, // Kis id ko mitaana hai
+                type: "delete_shape",
+                id: shape.id,
                 roomId: this.roomId,
               }),
             );
@@ -426,47 +419,44 @@ export class WhiteboardEngine {
       }
     }
 
-    if(selectedTool === "text"){
+    if (selectedTool === "text") {
       this.isClicked = false;
 
-      const x = e.clientX;
-      const y = e.clientY;
-      
       const input = document.createElement("input");
+      this.activeTextInput = input; // Track in class for unmount safety
+
       input.type = "text";
       input.placeholder = "";
-
-      input.style.position = "fixed"; // fixed use kiya taaki scroll ka panga na ho
+      input.style.position = "fixed";
       input.style.left = `${e.clientX}px`;
       input.style.top = `${e.clientY}px`;
       input.style.font = "24px sans-serif";
       input.style.background = "transparent";
-      input.style.border = "none"; 
+      input.style.border = "none";
       input.style.outline = "none";
       input.style.zIndex = "1000";
-      input.style.padding = "0"; 
+      input.style.padding = "0";
       input.style.margin = "0";
-      input.style.lineHeight = "1"; 
-      input.style.zIndex = "1000";
+      input.style.lineHeight = "1";
 
       document.body.appendChild(input);
       setTimeout(() => input.focus(), 0);
 
       input.addEventListener("blur", () => {
         const textValue = input.value.trim();
-        
+
         if (textValue !== "") {
           const textShape: Shape = {
             type: "Text",
             text: textValue,
-            x: x,
-            y: y, 
+            x: this.startX,
+            y: this.startY,
             seed: this.currentSeed,
             id: crypto.randomUUID(),
           };
 
           this.shapes.push(textShape);
-          this.myShapeIds.add(textShape.id); // track for user-scoped undo
+          this.myShapeIds.add(textShape.id);
           this.existingShapes();
 
           if (this.socket.readyState === WebSocket.OPEN) {
@@ -479,25 +469,28 @@ export class WhiteboardEngine {
             );
           }
         }
-        // input box ka kaam khatam, usko mita do
+
         input.remove();
+        if (this.activeTextInput === input) {
+          this.activeTextInput = null;
+        }
       });
 
-      //  agar user 'Enter' dabaye toh bhi save ho jaye
       input.addEventListener("keydown", (ev) => {
         if (ev.key === "Enter") {
-          input.blur(); // blur trigger karega toh upar wala code khud chal jayega
+          input.blur();
         }
       });
 
       return;
-
     }
   };
 
   mouseUpHandler = (e: MouseEvent) => {
+    if (!this.isClicked) return;
     this.isClicked = false;
-    if(this.rafId){
+
+    if (this.rafId) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
@@ -506,10 +499,9 @@ export class WhiteboardEngine {
     const width = x - this.startX;
     const height = y - this.startY;
 
-    
-
     const selectedTool = this.selectedTool;
     let shape: Shape | null = null;
+
     if (selectedTool === "rect") {
       shape = {
         type: "Rect",
@@ -518,10 +510,9 @@ export class WhiteboardEngine {
         width: width,
         height: height,
         seed: this.currentSeed,
-        id: crypto.randomUUID(), //uuid matlab universal unique id , its random
+        id: crypto.randomUUID(),
       };
     } else if (selectedTool === "circle") {
-      // BUG 2 FIXED HERE
       const radiusX = width / 2;
       const radiusY = height / 2;
       const centerX = this.startX + radiusX;
@@ -580,13 +571,10 @@ export class WhiteboardEngine {
     }
 
     this.shapes.push(shape);
-    // Track this shape as belonging to the current user so undo only
-    // removes the calling user's own work, not a collaborator's.
     this.myShapeIds.add(shape.id);
+    this.redoStack = [];
 
-    this.redoStack = []; //naya shape bante hi redo stack khali karna hai.
-    
-    this.existingShapes(); // BUG 3 FIXED HERE
+    this.existingShapes();
 
     this.socket.send(
       JSON.stringify({
@@ -605,8 +593,6 @@ export class WhiteboardEngine {
 
       const { x, y } = this.getCoordinates(e);
 
-      // Only add a pencil point if it is far enough from the last recorded
-      // point. This reduces coordinate noise and shrinks the final payload.
       if (this.selectedTool === "pencil") {
         const lp = this.lastPencilPoint;
         const dist = lp ? Math.hypot(x - lp[0], y - lp[1]) : Infinity;
@@ -616,47 +602,35 @@ export class WhiteboardEngine {
         }
       }
 
-      // agar purana frame pending hai toh usko cancel karenge vibration rokne ke liye
       if (this.rafId) {
         cancelAnimationFrame(this.rafId);
       }
 
-      // naya frame schedule karenge browser sync ke sath
       this.rafId = requestAnimationFrame(() => {
         this.rafId = null;
         const width = x - this.startX;
         const height = y - this.startY;
-        // ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // ctx.fillStyle = "black";  //background ko black kar dega
-        // ctx.fillRect(0, 0, canvas.width, canvas.height);
+
         this.existingShapes();
-        // this.ctx.strokeStyle = "black"; //boundary will be black
         const selectedTool = this.selectedTool;
+
         if (selectedTool === "rect") {
-          // this.ctx.strokeRect(this.startX, this.startY, width, height);
           this.rc.rectangle(this.startX, this.startY, width, height, {
             stroke: "black",
             seed: this.currentSeed,
           });
         } else if (selectedTool === "circle") {
-          // BUG 2 FIXED HERE
           const radiusX = width / 2;
           const radiusY = height / 2;
           const centerX = this.startX + radiusX;
           const centerY = this.startY + radiusY;
           const radius = Math.max(Math.abs(radiusX), Math.abs(radiusY));
 
-          // this.ctx.beginPath();
-          // this.ctx.arc(centerX, centerY, Math.abs(radius), 0, Math.PI * 2);
-          // this.ctx.stroke();
-          // this.ctx.closePath();
-
           this.rc.circle(centerX, centerY, radius * 2, {
             stroke: "black",
             seed: this.currentSeed,
           });
         } else if (selectedTool === "pencil") {
-          // currentPath me points upar push ho chuke hai, bas draw karna hai
           this.rc.linearPath(this.currentPath, {
             stroke: "black",
             seed: this.currentSeed,
@@ -678,17 +652,19 @@ export class WhiteboardEngine {
             [midX, this.startY + height],
             [this.startX, midY],
           ], {
-            stroke: "black", seed: this.currentSeed,
+            stroke: "black",
+            seed: this.currentSeed,
           });
         }
       });
     }
   };
+
   initMouseHandler() {
     this.canvas.addEventListener("mousedown", this.mouseDownHandler);
-
-    this.canvas.addEventListener("mouseup", this.mouseUpHandler);
-
     this.canvas.addEventListener("mousemove", this.mouseMoveHandler);
+
+    // Bounded to window to ensure dragging outside canvas stops drawing cleanly
+    window.addEventListener("mouseup", this.mouseUpHandler);
   }
 }

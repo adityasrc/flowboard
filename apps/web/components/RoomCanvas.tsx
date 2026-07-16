@@ -1,4 +1,5 @@
 "use client";
+
 import { WS_BACKEND } from "@/config";
 import { useEffect, useRef, useState } from "react";
 import { Canvas } from "@/components/Canvas";
@@ -24,8 +25,21 @@ export function RoomCanvas({ roomId }: CanvasProps) {
     let attempts = 0;
     const MAX_ATTEMPTS = 5;
 
+    // Show a hint after 3s that the cloud server may be cold-starting.
+    const coldStartTimer = setTimeout(() => {
+      setLoadingText(
+        "Waking up the cloud server — this can take up to 50s on first load…",
+      );
+    }, 3000);
+
     function connect() {
-      const token = localStorage.getItem("token");
+      let token = "";
+      try {
+        token = localStorage.getItem("token") || "";
+      } catch (err) {
+        console.warn("Storage access blocked:", err);
+      }
+
       if (!token || token === "undefined" || token === "null" || token === "") {
         router.push("/signin");
         return;
@@ -42,15 +56,29 @@ export function RoomCanvas({ roomId }: CanvasProps) {
           ws.close();
           return;
         }
+
+        // CRITICAL FIX: Kill the cold-start hint immediately once connected
+        clearTimeout(coldStartTimer);
+
         attempts = 0; // reset backoff on successful connection
         setSocket(ws);
         setLoadingText("Connecting to server...");
         ws.send(JSON.stringify({ type: "join_room", roomId }));
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         if (cancelled) return;
         setSocket(null);
+
+        // Standard WS auth violation codes (1008 = Policy Violation, 4001/4003 = Custom Auth Fail)
+        // If the token is rejected by backend, do not retry 5 times; logout immediately.
+        if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
+          try {
+            localStorage.removeItem("token");
+          } catch (e) { }
+          router.push("/signin");
+          return;
+        }
 
         if (attempts < MAX_ATTEMPTS) {
           // Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at 30s)
@@ -66,15 +94,6 @@ export function RoomCanvas({ roomId }: CanvasProps) {
       };
     }
 
-    // Show a hint after 3s that the cloud server may be cold-starting.
-    const coldStartTimer = setTimeout(
-      () =>
-        setLoadingText(
-          "Waking up the cloud server — this can take up to 50s on first load…",
-        ),
-      3000,
-    );
-
     connect();
 
     return () => {
@@ -87,18 +106,15 @@ export function RoomCanvas({ roomId }: CanvasProps) {
 
   if (!socket) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-[#FAFAFA] gap-4">
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-slate-50 gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
-        <p className="text-[14px] font-medium text-slate-600 animate-pulse">
+        <p className="text-[14px] font-medium text-slate-600 animate-pulse text-center px-4 max-w-md">
           {loadingText}
         </p>
       </div>
     );
   }
 
-  return (
-    <div>
-      <Canvas roomId={roomId} socket={socket} />
-    </div>
-  );
+  // Directly returning Canvas keeps the React DOM tree clean and avoids nested wrappers
+  return <Canvas roomId={roomId} socket={socket} />;
 }
