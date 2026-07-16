@@ -1,5 +1,5 @@
 "use client";
-// import { Card } from "@/components/ui/card";
+
 import {
   Card,
   CardContent,
@@ -11,12 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRef, useState } from "react"; // Added useState for loading
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { HTTP_BACKEND } from "@/config";
-import Link from "next/link"; 
-import { Layers } from "lucide-react"; 
+import Link from "next/link";
+import { Layers } from "lucide-react";
 
 export default function Signin() {
   const router = useRouter();
@@ -24,19 +24,21 @@ export default function Signin() {
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  // State for handling button loading state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(""); 
+  const [error, setError] = useState("");
 
-  async function signin() {
-    const username = usernameRef.current?.value;
+  // <form onSubmit={...}> aur e.preventDefault() use karne se page refresh nahi hota 
+  // aur keyboard ka 'Enter' button smooth login trigger करता hai
+  async function handleSignin(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    const username = usernameRef.current?.value.trim();
     const password = passwordRef.current?.value;
 
     setError(""); // Reset error on new attempt
 
-    // Minimal client-side validation
     if (!username || !password) {
-      setError("Username and password are required"); // UI Error, no alert
+      setError("Username and password are required");
       return;
     }
 
@@ -47,14 +49,20 @@ export default function Signin() {
         username,
         password,
       });
+
       const jwt = response.data.token;
-      localStorage.setItem("token", jwt);
+
+      // Safari Incognito ya restrictive iframes me localStorage fail na ho isliye try/catch
+      try {
+        localStorage.setItem("token", jwt);
+      } catch (storageErr) {
+        console.warn("Could not save token to storage:", storageErr);
+      }
+
       router.push("/dashboard");
-      //redirect the user to dashboard baki hai - DONE
-    } catch (e: any) {
-     
-      if (e.response?.data?.message) {
-        setError(e.response.data.message);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response.data.message);
       } else {
         setError("Server error or invalid credentials");
       }
@@ -63,11 +71,10 @@ export default function Signin() {
     }
   }
 
-  // Yahan <form> ki jagah <div> kar diya hai taaki auto-refresh na ho
   return (
     <div className="bg-slate-50 text-foreground">
-      <div className="w-screen h-screen flex flex-col justify-center items-center">
-        
+      <div className="w-screen h-screen flex flex-col justify-center items-center px-4">
+
         <Link
           href="/"
           className="flex items-center gap-2.5 mb-8 group"
@@ -88,63 +95,66 @@ export default function Signin() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="grid gap-4 mt-6">
-            <div className="grid gap-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                className="bg-transparent border-input"
-                ref={usernameRef}
-                id="username"
-                type="text"
-                placeholder="aditya123"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+          {/* Form wrapper enables instant Enter-key submit and browser autofill support */}
+          <form onSubmit={handleSignin}>
+            <CardContent className="grid gap-4 mt-6">
+              <div className="grid gap-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  className="bg-transparent border-input"
+                  ref={usernameRef}
+                  id="username"
+                  name="username"
+                  type="text"
+                  placeholder="aditya123"
+                  autoComplete="username"
+                  disabled={loading}
+                />
               </div>
-              <Input
-                className="bg-transparent border-input"
-                ref={passwordRef}
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                disabled={loading}
-              />
-            </div>
-          </CardContent>
 
-          <CardFooter className="flex flex-col gap-4">
-            {/* Agar error aayega toh red color mein yahan dikhega */}
-            {error && (
-              <div className="w-full p-2 bg-red-50 border border-red-200 rounded-md text-center">
-                <p className="text-sm font-medium text-red-600">{error}</p>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                </div>
+                <Input
+                  className="bg-transparent border-input"
+                  ref={passwordRef}
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  disabled={loading}
+                />
               </div>
-            )}
-            <Button
-              type="button"
-              className="w-full cursor-pointer"
-              disabled={loading}
-              onClick={() => {
-                signin();
-              }}
-            >
-              {loading ? "Signing in..." : "Signin"}
-            </Button>
+            </CardContent>
 
-            {/* New Link for UX completeness */}
-            <p className="text-sm text-center text-slate-600">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="font-semibold text-black hover:underline"
+            <CardFooter className="flex flex-col gap-4 mt-2">
+              {error && (
+                <div className="w-full p-2 bg-red-50 border border-red-200 rounded-md text-center">
+                  <p className="text-sm font-medium text-red-600">{error}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full cursor-pointer bg-black text-white hover:bg-slate-800"
+                disabled={loading}
               >
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
+                {loading ? "Signing in..." : "Signin"}
+              </Button>
+
+              <p className="text-sm text-center text-slate-600">
+                Don&apos;t have an account?{" "}
+                <Link
+                  href="/signup"
+                  className="font-semibold text-black hover:underline"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </CardFooter>
+          </form>
         </Card>
       </div>
     </div>

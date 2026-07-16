@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Layers, LogOut, Settings, UserIcon } from "lucide-react"
+import { Layers, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   DropdownMenu,
@@ -44,16 +44,21 @@ export function DashboardHeader({ user }: UserProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    setShowLogoutDialog(false)
-    router.push("/")
+    try {
+      localStorage.removeItem("token")
+    } catch (err) {
+      console.warn("Could not clear storage during logout:", err)
+    } finally {
+      setShowLogoutDialog(false)
+      router.push("/")
+    }
   }
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex h-14 items-center justify-between px-6">
-          
+
           <div className="flex items-center">
             <div className="flex items-center gap-2 md:gap-3">
               <Link href="/" className="flex items-center gap-2 group">
@@ -83,23 +88,21 @@ export function DashboardHeader({ user }: UserProps) {
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
-              
+
               <DropdownMenuContent align="end" className="w-56 mt-1 border-slate-200 shadow-sm rounded-xl">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-[14px] font-medium leading-none text-slate-900">
                       {user?.name || "User"}
                     </p>
-                    <p className="text-[12px] leading-none text-[#666666]">
+                    <p className="text-[12px] leading-none text-slate-500">
                       {user?.email || ""}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-slate-100" />
-                
 
-                
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onSelect={(e) => {
                     e.preventDefault()
                     setShowLogoutDialog(true)
@@ -120,16 +123,15 @@ export function DashboardHeader({ user }: UserProps) {
         <AlertDialogContent className="rounded-xl border-slate-100 shadow-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg font-semibold tracking-tight">Log out of Flowboard?</AlertDialogTitle>
-            <AlertDialogDescription className="text-[14px] text-[#666666]">
+            <AlertDialogDescription className="text-[14px] text-slate-500">
               Are you sure you want to log out? You will need to sign in again to access your workspaces.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2 sm:space-x-3">
-
             <AlertDialogCancel className="text-[13px] font-medium h-9 px-4 cursor-pointer border-slate-200 hover:bg-slate-50">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white text-[13px] font-medium h-9 px-4 rounded-md shadow-sm cursor-pointer"
             >
