@@ -1,1 +1,0 @@
-{"root":["./src/index.ts","./src/middleware.ts","./src/ratelimit.ts","./src/types/express/index.d.ts"],"version":"5.9.2"}

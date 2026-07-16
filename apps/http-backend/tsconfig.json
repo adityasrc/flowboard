@@ -6,6 +6,8 @@
     },
     "include" : ["src/**/*"], //for declaration merging file
     "references": [
-    { "path": "../../packages/common" }
+    { "path": "../../packages/common" },
+    { "path": "../../packages/database" },
+    { "path": "../../packages/backend-common" }
   ]
 }
