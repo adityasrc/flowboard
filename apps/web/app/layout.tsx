@@ -12,11 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
-  title: "Flowboard",
-  description: "Real-time collaborative whiteboarding",
+// Explicit Metadata type annotation ensures type safety across all SEO parameters
+export const metadata: Metadata = {
+  title: {
+    default: "Flowboard | Real-Time Collaborative Whiteboard",
+    template: "%s | Flowboard",
+  },
+  description: "A low-latency collaborative whiteboarding workspace powered by native WebSockets, Node.js, PostgreSQL, and Rough.js.",
+  keywords: ["whiteboard", "collaboration", "real-time", "websockets", "nextjs", "roughjs", "canvas", "system-design"],
   icons: {
-    icon: "/favicon.ico", 
+    icon: "/favicon.ico",
   },
 };
 
