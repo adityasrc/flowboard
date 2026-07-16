@@ -5,7 +5,11 @@
         "outDir": "./dist"
     },
     "references": [
-        { "path": "../../packages/database" },
-        { "path": "../../packages/backend-common" }
+        {
+            "path": "../../packages/database"
+        },
+        {
+            "path": "../../packages/backend-common"
+        }
     ]
 }
