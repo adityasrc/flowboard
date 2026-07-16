@@ -1,47 +1,55 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# Dependencies
+# ==========================================
+# Dependencies & Package Managers
+# ==========================================
 node_modules
 .pnp
 .pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Local env files
+# ==========================================
+# Environment Variables & Security
+# ==========================================
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-# Testing
-coverage
+*.pem
 
-# Turbo
+# ==========================================
+# Caching & Build Outputs
+# ==========================================
 .turbo
-
-# Vercel
 .vercel
-
-# Build Outputs
 .next/
 out/
 build
 dist
+*.tsbuildinfo
 
-#Db
-../generated/prisma
+# ==========================================
+# Database & Generated Files
+# ==========================================
+# Ignores custom Prisma client builds across workspaces
+**/generated/prisma
 
+# Note: Only ignore seed.ts if it contains sensitive local data!
+# Otherwise, remove the line below so teammates can seed their DBs.
+seed.ts
 
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Misc
-.DS_Store
-*.pem
-
-
+# ==========================================
+# Testing & Debug Debugging Logs
+# ==========================================
+coverage
 bug_log.txt
 evaluation_report.txt
 ui_evaluation_report.txt
-seed.ts
-*.tsbuildinfo
+
+# ==========================================
+# OS & Misc Metadata
+# ==========================================
+.DS_Store
+*.log

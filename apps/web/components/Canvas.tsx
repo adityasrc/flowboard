@@ -184,49 +184,64 @@ function Topbar({
   onDownload: () => void;
 }) {
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-xl shadow-md border border-slate-200/80">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-xl shadow-md border border-slate-200/80 select-none">
       <div className="flex gap-1 items-center">
+
 
         <IconButton
           onClick={() => setSelectedTool("pencil")}
           activated={selectedTool === "pencil"}
           icon={<Pencil size={18} />}
+          title="Pencil Tool (Freehand)"
+          aria-label="Select Pencil Tool"
         />
 
         <IconButton
           onClick={() => setSelectedTool("line")}
           activated={selectedTool === "line"}
           icon={<Minus size={18} />}
+          title="Line Tool"
+          aria-label="Select Line Tool"
         />
 
         <IconButton
           onClick={() => setSelectedTool("arrow")}
           activated={selectedTool === "arrow"}
           icon={<MoveUpRight size={18} />}
+          title="Arrow Tool"
+          aria-label="Select Arrow Tool"
         />
 
         <IconButton
           onClick={() => setSelectedTool("rect")}
           activated={selectedTool === "rect"}
           icon={<RectangleHorizontalIcon size={18} />}
+          title="Rectangle Tool"
+          aria-label="Select Rectangle Tool"
         />
 
         <IconButton
           onClick={() => setSelectedTool("circle")}
           activated={selectedTool === "circle"}
           icon={<Circle size={18} />}
+          title="Circle Tool"
+          aria-label="Select Circle Tool"
         />
 
         <IconButton
           onClick={() => setSelectedTool("diamond")}
           activated={selectedTool === "diamond"}
           icon={<Diamond size={18} />}
+          title="Diamond Tool"
+          aria-label="Select Diamond Tool"
         />
 
         <IconButton
           onClick={() => setSelectedTool("text")}
           activated={selectedTool === "text"}
           icon={<Type size={18} />}
+          title="Text Tool"
+          aria-label="Select Text Tool"
         />
 
         <div className="w-px h-4 bg-slate-200 mx-1" />
@@ -235,32 +250,43 @@ function Topbar({
           onClick={() => setSelectedTool("eraser")}
           activated={selectedTool === "eraser"}
           icon={<Eraser size={18} />}
+          title="Eraser Tool"
+          aria-label="Select Eraser Tool"
         />
 
         <IconButton
           onClick={onUndo}
           activated={false}
           icon={<Undo size={18} />}
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo last action"
         />
 
         <IconButton
           onClick={onRedo}
           activated={false}
           icon={<Redo size={18} />}
+          title="Redo (Ctrl+Y)"
+          aria-label="Redo last action"
         />
 
         <div className="w-px h-4 bg-slate-200 mx-1" />
+
 
         <IconButton
           onClick={onDownload}
           activated={false}
           icon={<Download size={18} />}
+          title="Download Canvas as PNG"
+          aria-label="Download Canvas"
         />
 
         <IconButton
           onClick={onLeave}
           activated={false}
           icon={<X size={18} />}
+          title="Leave Workspace"
+          aria-label="Leave Room"
         />
       </div>
     </div>
