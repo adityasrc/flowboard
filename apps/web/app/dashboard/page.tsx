@@ -37,8 +37,8 @@ export default function Dashboard() {
   const [isOpen, setIsOpen] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [slug, setSlug] = useState("");
-  const [joinError, setJoinError] = useState(""); 
-  
+  const [joinError, setJoinError] = useState("");
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     name?: string;
@@ -56,33 +56,46 @@ export default function Dashboard() {
       return;
     }
 
-    setIsAuthenticated(true);
-
     try {
-      // Decode JWT token payload silently (atob is base64 decoder)
-      const payload = JSON.parse(atob(token.split(".")[1]));
+      // Base64URL safe decoding ensures mobile Safari doesn't crash on '-' or '_'
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(atob(base64));
+
+      // Token expiry check: agar token expire ho gaya toh logout kar do
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        localStorage.removeItem("token");
+        router.push("/signin");
+        return;
+      }
+
       const userName = payload.name || payload.username || "";
       setCurrentUser({
-        name: userName, 
+        name: userName,
         email: payload.email || "",
       });
+      setIsAuthenticated(true);
     } catch (e) {
-      console.log("Failed to decode token for user data");
+      console.log("Failed to decode token, redirecting to login");
+      localStorage.removeItem("token");
+      router.push("/signin");
+      return;
     }
 
     fetchRooms();
   }, [router]);
 
   const handleJoinBySlug = () => {
-    setJoinError(""); 
+    setJoinError("");
 
-    // URL styling rules ke hisaab se slug ko sanitize kiya
+    // URL styling rules ke hisaab se slug ko sanitize kiya (stripping leading/trailing hyphens too)
     const formattedSlug = slug
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-') 
-      .replace(/-+/g, '-');        
-    
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
     // Yaha pehle ek REST API (axios) call hoti thi room check karne ke liye.
     // Us se "Double Latency" hoti thi user ko join krne par. Ab hum usko hata diye hain.
     // Hum Optimistic Routing use kar rahe hain: simply assume room exist karta h, 
@@ -100,7 +113,10 @@ export default function Dashboard() {
     setIsCreating(true);
     try {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        router.push("/signin");
+        return;
+      }
 
       const response = await axios.post(
         `${HTTP_BACKEND}/room`,
@@ -111,7 +127,7 @@ export default function Dashboard() {
       console.log("Room Created:", response.data);
       setRoomName("");
       setIsOpen(false);
-      fetchRooms(); 
+      fetchRooms();
     } catch (e) {
       console.error("Failed to create room:", e);
     } finally {
@@ -139,31 +155,31 @@ export default function Dashboard() {
   // loader dikhao jab tak auth check chal rha h locally taaki white screen (hydration flash) na ho
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAFA] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-slate-50">
       <DashboardHeader user={currentUser} />
 
       <main className="p-6 md:p-10 max-w-7xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
           My Rooms
         </h1>
-        <p className="text-[14px] text-[#666666] mt-1 mb-10">
+        <p className="text-[14px] text-slate-500 mt-1 mb-10">
           Select a workspace to start collaborating, or create a new one instantly.
         </p>
 
         {/* Action Bar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        
+
           <div className="flex flex-col gap-2 w-full sm:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Input
-                className="max-w-xs h-9 text-[13px] border-slate-200 shadow-sm focus-visible:ring-black"
+                className="max-w-xs h-9 text-[13px] bg-white border-slate-200 shadow-sm focus-visible:ring-black"
                 placeholder="Enter room slug..."
                 value={slug}
                 onChange={(e) => {
@@ -175,8 +191,8 @@ export default function Dashboard() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 px-4 text-[13px] font-medium text-slate-600 border-slate-200 shadow-sm hover:bg-slate-50 cursor-pointer"
-                onClick={handleJoinBySlug} 
+                className="h-9 px-4 text-[13px] font-medium text-slate-600 bg-white border-slate-200 shadow-sm hover:bg-slate-50 cursor-pointer"
+                onClick={handleJoinBySlug}
                 disabled={!slug.trim()}
               >
                 Join
@@ -203,7 +219,7 @@ export default function Dashboard() {
                 <DialogTitle className="text-lg font-semibold tracking-tight">
                   New Workspace
                 </DialogTitle>
-                <DialogDescription className="text-[14px] text-[#666666]">
+                <DialogDescription className="text-[14px] text-slate-500">
                   Give your canvas a custom slug to get started.
                 </DialogDescription>
               </DialogHeader>
@@ -219,6 +235,7 @@ export default function Dashboard() {
                   <Input
                     id="name"
                     type="text"
+                    autoFocus
                     placeholder="e.g. daily-standup"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
@@ -254,8 +271,8 @@ export default function Dashboard() {
             <h3 className="text-xl font-semibold tracking-tight text-slate-900 mb-2">
               No active workspaces
             </h3>
-            <p className="text-[14px] text-[#666666] mb-6 max-w-sm mx-auto">
-              You haven't created any Flowboards yet. Start sketching by creating your first room.
+            <p className="text-[14px] text-slate-500 mb-6 max-w-sm mx-auto">
+              You haven&apos;t created any Flowboards yet. Start sketching by creating your first room.
             </p>
             <Button
               onClick={() => setIsOpen(true)}
@@ -277,23 +294,23 @@ export default function Dashboard() {
                     {room.slug}
                   </CardTitle>
                 </CardHeader>
-                
+
                 <CardContent className="p-4 pt-0">
                   <div className="aspect-video bg-slate-50 border border-slate-100 rounded-lg relative overflow-hidden group-hover:bg-slate-100 transition-colors">
-                    
-                    <img 
-                      src="/canvas-preview.png" 
-                      alt="Preview" 
+
+                    <img
+                      src="/canvas-preview.png"
+                      alt="Preview"
                       className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity z-10"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
                     />
-                    
+
                     {/* Fallback pattern that looks super clean if no preview image exists */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 z-0">
                       <div className="w-8 h-8 border-2 border-slate-300 rounded-md flex items-center justify-center opacity-40">
-                         <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
+                        <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
                         Open Workspace
