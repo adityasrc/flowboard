@@ -165,7 +165,7 @@ wss.on("connection", function connection(ws, request) {
                 userId: Number(userId),
               },
             })
-            .catch((e) => console.error("[DB] chat.create failed:", e));
+            .catch((e: unknown) => console.error("[DB] chat.create failed:", e));
         } catch (e) {
           console.log("DB Error:", e);
         }
@@ -215,7 +215,7 @@ wss.on("connection", function connection(ws, request) {
                 },
               },
             })
-            .catch((e) => console.error("[DB] chat.deleteMany failed:", e));
+            .catch((e: unknown) => console.error("[DB] chat.deleteMany failed:", e));
         } catch (e) {
           console.error(e);
         }

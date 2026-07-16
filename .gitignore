@@ -44,3 +44,4 @@ bug_log.txt
 evaluation_report.txt
 ui_evaluation_report.txt
 seed.ts
+*.tsbuildinfo
