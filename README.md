@@ -19,10 +19,10 @@ Here is how Flowboard handles those challenges:
 * **The Problem:** When you click and drag to draw a rectangle from right-to-left or bottom-to-top, the width and height math becomes negative. Standard canvas renderers freak out and cause the shape to vibrate wildly on screen.
 * **The Fix:** I wrote a coordinate normalizer using simple max/min math that automatically flips negative dimensions into clean, positive values. You can drag your mouse as fast and chaotically as you want, and the shape stays solid.
 
-### 2. Smooth 60 FPS Drawing Without Freezing the Browser
+### 2. Main-Thread Optimized Drawing via Display-Synchronized Throttling
 
 * **The Problem:** If you redraw an entire screen full of shapes on every single millisecond your mouse moves (`mousemove`), the browser's main thread chokes, causing severe screen stutter.
-* **The Fix:** I hooked the drawing loop directly into the browser's refresh rate using `requestAnimationFrame`. If the mouse fires faster than the screen can refresh, stale frames are instantly canceled. The canvas stays locked at a buttery-smooth 60 frames per second.
+* **The Fix:** I hooked the drawing loop directly into the browser's refresh rate using `requestAnimationFrame`. If the mouse fires faster than the screen can refresh, stale frames are instantly canceled. The canvas stays synchronized with the display's native refresh rate, ensuring smooth rendering without blocking the browser's main thread.
 
 ### 3. Instant Drawing Without "Ghost" Echoes
 

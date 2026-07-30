@@ -9,14 +9,13 @@ datasource db {
 
 model User {
   id       Int     @id @default(autoincrement())
-  username String  @unique
   name     String
   email    String  @unique
   password String
-  photo    String?
 
+  joinedRooms  Room[] @relation("RoomMembers")
   rooms    Room[]
-  chats    Chat[]
+  shapes    Shape[]
 }
 
 model Room {
@@ -24,18 +23,20 @@ model Room {
   slug      String   @unique
   createdAt DateTime @default(now())
   adminId   Int
-
+  members User[] @relation("RoomMembers")
   admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  chats     Chat[]
+  shapes     Shape[]
 
   @@index([adminId])
 }
 
-model Chat {
+model Shape {
   id        Int      @id @default(autoincrement())
   roomId    Int
   userId    Int
-  message   String   // Stores serialized graphical canvas elements (e.g., JSON string of { type: "Rect", x: 1, y: 1, w: 10, h: 10 })
+  shapeId   String
+  shapeType String
+  shapeData   String   // Stores serialized graphical canvas elements (e.g., JSON string of { type: "Rect", x: 1, y: 1, w: 10, h: 10 })
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -43,4 +44,5 @@ model Chat {
 
   @@index([roomId])
   @@index([userId])
+  @@index([roomId, shapeId])
 }
