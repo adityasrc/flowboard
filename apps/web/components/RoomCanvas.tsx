@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Canvas } from "@/components/Canvas";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { WhiteboardEngine } from "@/draw/WhiteboardEngine";
 
 interface CanvasProps {
   roomId: string;
@@ -18,6 +19,9 @@ export function RoomCanvas({ roomId }: CanvasProps) {
   // Holds the active WebSocket so the cleanup function always closes the
   // most recently created socket, even after reconnect cycles.
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Holds the engine instance so we can flush the offline queue on reconnect.
+  const engineRef = useRef<WhiteboardEngine | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +68,9 @@ export function RoomCanvas({ roomId }: CanvasProps) {
         setSocket(ws);
         setLoadingText("Connecting to server...");
         ws.send(JSON.stringify({ type: "join_room", roomId }));
+
+        // Flush any messages that were queued while the socket was offline
+        engineRef.current?.flushQueue();
       };
 
       ws.onclose = (event) => {
@@ -116,5 +123,13 @@ export function RoomCanvas({ roomId }: CanvasProps) {
   }
 
   // Directly returning Canvas keeps the React DOM tree clean and avoids nested wrappers
-  return <Canvas roomId={roomId} socket={socket} />;
+  return (
+    <Canvas
+      roomId={roomId}
+      socket={socket}
+      onEngineReady={(engine) => {
+        engineRef.current = engine;
+      }}
+    />
+  );
 }

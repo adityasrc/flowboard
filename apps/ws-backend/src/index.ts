@@ -1,3 +1,4 @@
+import "./loadEnv"; // MUST be first — loads root .env before any other import executes
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
@@ -29,16 +30,46 @@ interface User {
 
 const users: User[] = [];
 
-// In-memory cache taaki har shape draw par bar-bar DB hit na ho
-// Ye N+1 query exhaust problem ko seedha solve kar dega bina Redis ke.
-const roomCache: Record<string, number> = {};
+// Map-based LRU Cache to prevent unbounded memory growth.
+// Map preserves insertion order, so the oldest entry is always map.keys().next().value.
+class LRUCache<K, V> {
+  private map = new Map<K, V>();
+  private readonly limit: number;
+
+  constructor(limit: number) {
+    this.limit = limit;
+  }
+
+  get(key: K): V | undefined {
+    if (!this.map.has(key)) return undefined;
+    // Delete and re-insert to mark as most recently used
+    const value = this.map.get(key)!;
+    this.map.delete(key);
+    this.map.set(key, value);
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, value);
+    // If over limit, evict the oldest entry (first key in insertion order)
+    if (this.map.size > this.limit) {
+      const oldest = this.map.keys().next().value;
+      if (oldest !== undefined) this.map.delete(oldest);
+    }
+  }
+}
+
+// Caches roomSlug -> roomId to avoid hitting the DB on every shape event.
+// Capped at 500 entries; least recently used rooms are evicted first.
+const roomCache = new LRUCache<string, number>(500);
 
 function checkUser(token: string): string | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
     if (!decoded || !decoded.id) {
-      console.log("Failed: ID is missing in token");
+      console.error("Authentication error: User ID missing in token");
       return null;
     }
 
@@ -50,7 +81,9 @@ function checkUser(token: string): string | null {
 
 wss.on("connection", function connection(ws, request) {
   const headerValue = request.headers["sec-websocket-protocol"];
-  const rawProtocol = Array.isArray(headerValue) ? headerValue[0] : (headerValue || "");
+  const rawProtocol = Array.isArray(headerValue)
+    ? headerValue[0]
+    : headerValue || "";
 
   const token = rawProtocol.split(",")[0]?.trim() || "";
 
@@ -97,10 +130,50 @@ wss.on("connection", function connection(ws, request) {
         if (!roomSlug || typeof roomSlug !== "string") return;
 
         const user = users.find((x) => x.ws === ws);
-        // Prevent duplicate room subscriptions from causing repeated message broadcasts
-        if (user && !user.rooms.includes(roomSlug)) {
-          user.rooms.push(roomSlug);
-          console.log("Joined room:", roomSlug);
+        if (!user) return;
+
+        if (!user.rooms.includes(roomSlug)) {
+          try {
+            const room = await client.room.findUnique({
+              where: { slug: roomSlug },
+              select: {
+                id: true,
+                members: {
+                  where: { id: Number(userId) },
+                  select: { id: true },
+                },
+              },
+            });
+
+            if (!room) {
+              console.error(`Room not found: ${roomSlug}`);
+              ws.send(
+                JSON.stringify({
+                  type: "error",
+                  message: "Room not found.",
+                }),
+              );
+              return;
+            }
+
+            // Auto-join member in DB if not already present
+            if (room.members.length === 0) {
+              await client.room.update({
+                where: { id: room.id },
+                data: {
+                  members: {
+                    connect: { id: Number(userId) },
+                  },
+                },
+              });
+            }
+
+            // Authorized! Add to active WS room list
+            user.rooms.push(roomSlug);
+            roomCache.set(roomSlug, room.id);
+          } catch (e) {
+            console.error("Database error: Failed to verify room membership:", e);
+          }
         }
       }
 
@@ -113,17 +186,25 @@ wss.on("connection", function connection(ws, request) {
           return;
         }
         user.rooms = user.rooms.filter((x) => x !== roomSlug);
-        console.log("Left room:", roomSlug);
       }
 
-      if (parsedData.type === "create_shape") {
+      if (parsedData.type === "shape") {
         const roomSlug = parsedData.roomId;
-        const message = parsedData.message;
-        if (!roomSlug || typeof roomSlug !== "string" || !message) return;
+        const rawMessage: string = parsedData.message;
+        if (!roomSlug || typeof roomSlug !== "string" || !rawMessage) return;
+
+        let shape: { id: string; type: string; [key: string]: unknown };
+        try {
+          shape = JSON.parse(rawMessage).shape;
+          if (!shape || !shape.id || !shape.type) return;
+        } catch {
+          console.error("Validation error: Malformed shape payload");
+          return;
+        }
 
         try {
-          // Database connection pool exhaust hone se bachane ke liye pehle local memory (cache) check karo
-          let roomId = roomCache[roomSlug];
+          // Check local cache first to avoid a DB hit on every shape event
+          let roomId = roomCache.get(roomSlug);
 
           if (!roomId) {
             const room = await client.room.findUnique({
@@ -131,43 +212,46 @@ wss.on("connection", function connection(ws, request) {
             });
 
             if (!room) {
-              console.log("Room not found in DB");
+              console.error("Not found error: Room does not exist");
               return;
             }
-            // Pehli baar room mila toh cache me store kar lo O(1) time access ke liye
+            // Cache on first lookup for O(1) access going forward
             roomId = room.id;
-            roomCache[roomSlug] = room.id;
+            roomCache.set(roomSlug, room.id);
           }
 
-          users.forEach((user) => {
+          // Broadcast the original raw message payload to all users in the room
+          users.forEach((u) => {
             if (
-              user.rooms.includes(roomSlug) &&
-              user.ws.readyState === WebSocket.OPEN
+              u.rooms.includes(roomSlug) &&
+              u.ws.readyState === WebSocket.OPEN &&
+              u.ws != ws
             ) {
-              user.ws.send(
+              u.ws.send(
                 JSON.stringify({
-                  type: "create_shape",
-                  message: message,
+                  type: "chat",
+                  message: rawMessage,
                   roomId: roomSlug,
                 }),
               );
             }
           });
 
-          // Fire-and-forget: broadcast has already happened above.
-          // We do NOT await here — a slow Neon DB round-trip must never stall
-          // the event loop and freeze the canvas for all connected users.
-          client.chat
+          client.shape
             .create({
               data: {
                 roomId: roomId,
-                message,
                 userId: Number(userId),
+                shapeId: shape.id, // UUID from frontend
+                shapeType: shape.type, // "Rect", "Circle", etc.
+                shapeData: rawMessage, // Full JSON string for rendering
               },
             })
-            .catch((e: unknown) => console.error("[DB] chat.create failed:", e));
+            .catch((e: unknown) =>
+              console.error("Database error: Failed to create shape record:", e),
+            );
         } catch (e) {
-          console.log("DB Error:", e);
+          console.error("Database error: Failed to process shape payload:", e);
         }
       } else if (parsedData.type === "delete_shape") {
         const roomSlug = parsedData.roomId;
@@ -175,7 +259,7 @@ wss.on("connection", function connection(ws, request) {
         if (!roomSlug || typeof roomSlug !== "string" || !shapeId) return;
 
         try {
-          let roomId = roomCache[roomSlug];
+          let roomId = roomCache.get(roomSlug);
 
           if (!roomId) {
             const room = await client.room.findUnique({
@@ -183,11 +267,9 @@ wss.on("connection", function connection(ws, request) {
             });
             if (!room) return;
             roomId = room.id;
-            roomCache[roomSlug] = room.id;
+            roomCache.set(roomSlug, room.id);
           }
 
-          // Optimistic UI Update: Broadcast deletion immediately before DB operation
-          // so erasing shapes feels just as instant as drawing them.
           users.forEach((user) => {
             if (
               user.rooms.includes(roomSlug) &&
@@ -203,25 +285,22 @@ wss.on("connection", function connection(ws, request) {
             }
           });
 
-          // Interview Knowledge Note: String text ke andar Prisma ka 'contains' SQL me LIKE '%shapeId%' banta hai.
-          // Iska matlab ye poori Database Table ko line-by-line read (scan) karta hai O(N) time me.
-          // Abhi demo ke liye theek hai but production me shapeId ko native DB Column banana padega indexing ke liye.
-          client.chat
+          client.shape
             .deleteMany({
               where: {
                 roomId: roomId,
-                message: {
-                  contains: String(shapeId),
-                },
+                shapeId: String(shapeId), // Direct lookup via indexed shapeId column
               },
             })
-            .catch((e: unknown) => console.error("[DB] chat.deleteMany failed:", e));
+            .catch((e: unknown) =>
+              console.error("Database error: Failed to delete shape record:", e),
+            );
         } catch (e) {
-          console.error(e);
+          console.error("Database error: Failed to process delete payload:", e);
         }
       }
     } catch (e) {
-      console.log("Invalid JSON:", e);
+      console.error("Parse error: Failed to parse WebSocket message:", e);
       return;
     }
   });

@@ -31,7 +31,7 @@ export function middleware(req: Request, res: Response, next: NextFunction) {
       });
     }
   } catch (e) {
-    console.log("JWT Verification Error:", e);
+    console.error("JWT Verification Error:", e);
     return res.status(403).json({
       message: "Unauthorized or Invalid token",
     });

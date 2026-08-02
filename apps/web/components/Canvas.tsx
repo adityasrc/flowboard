@@ -27,10 +27,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface CanvasProps {
   roomId: string;
   socket: WebSocket;
+  onEngineReady?: (engine: WhiteboardEngine) => void;
 }
 
 export type Tool =
@@ -45,7 +47,7 @@ export type Tool =
   | "diamond"
   | "text";
 
-export function Canvas({ roomId, socket }: CanvasProps) {
+export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -98,7 +100,7 @@ export function Canvas({ roomId, socket }: CanvasProps) {
       const ctx = canvas.getContext("2d");
       if (ctx) ctx.scale(dpr, dpr);
 
-      gameRef.current?.existingShapes();
+      gameRef.current?.render();
     };
 
     handleResize(); // Initialize sizes immediately
@@ -106,6 +108,7 @@ export function Canvas({ roomId, socket }: CanvasProps) {
     const game = new WhiteboardEngine(canvas, roomId, socket);
     game.setTool(selectedTool);
     gameRef.current = game;
+    onEngineReady?.(game); // Tell RoomCanvas about the engine so it can flush the queue on reconnect
 
     window.addEventListener("resize", handleResize);
 
@@ -136,20 +139,20 @@ export function Canvas({ roomId, socket }: CanvasProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-2 sm:space-x-3">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setShowLeaveDialog(false)}
-              className="inline-flex items-center justify-center border border-slate-200 bg-transparent hover:bg-slate-50 text-slate-900 text-[13px] font-medium h-9 px-4 rounded-md cursor-pointer transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="destructive"
               onClick={() => router.push("/dashboard")}
-              className="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white text-[13px] font-medium h-9 px-4 rounded-md shadow-sm cursor-pointer transition-colors"
             >
               Leave
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -285,7 +288,7 @@ function Topbar({
           onClick={onLeave}
           activated={false}
           icon={<X size={18} />}
-          title="Leave Workspace"
+          title="Leave Room"
           aria-label="Leave Room"
         />
       </div>

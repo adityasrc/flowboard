@@ -10,16 +10,17 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/ws": "^8.18.1",
-    "@types/jsonwebtoken": "^9.0.10"
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ws": "^8.18.1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@repo/db": "workspace:*",
     "@repo/backend-common": "workspace:*",
+    "@repo/db": "workspace:*",
+    "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.18.3"
   }
