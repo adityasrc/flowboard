@@ -1,62 +1,58 @@
 "use client";
 
+import axios from "axios";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import axios from "axios";
 import { HTTP_BACKEND } from "@/config";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { Layers, Loader2 } from "lucide-react";
 
 export default function Signin() {
   const router = useRouter();
 
-  const usernameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // <form onSubmit={...}> aur e.preventDefault() use karne se page refresh nahi hota 
-  // aur keyboard ka 'Enter' button smooth login trigger करता hai
   async function handleSignin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const username = usernameRef.current?.value.trim();
+    const email = emailRef.current?.value.trim();
     const password = passwordRef.current?.value;
 
-    setError(""); // Reset error on new attempt
+    setError("");
 
-    if (!username || !password) {
-      setError("Username and password are required");
+    if (!email || !password) {
+      setError("Email and password are required");
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await axios.post(`${HTTP_BACKEND}/signin`, {
-        username,
+      const response = await axios.post(`${HTTP_BACKEND}/api/v1/auth/signin`, {
+        email,
         password,
       });
 
       const jwt = response.data.token;
 
-      // Safari Incognito ya restrictive iframes me localStorage fail na ho isliye try/catch
       try {
         localStorage.setItem("token", jwt);
-      } catch (storageErr) {
-        console.warn("Could not save token to storage:", storageErr);
+      } catch {
+        // Storage unavailable
       }
 
       router.push("/dashboard");
@@ -72,91 +68,94 @@ export default function Signin() {
   }
 
   return (
-    <div className="bg-slate-50 text-foreground">
-      <div className="w-screen h-screen flex flex-col justify-center items-center px-4">
-
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 mb-8 group"
-        >
-          <div className="bg-black p-1.5 rounded-xl transition-transform group-hover:rotate-6">
-            <Layers className="h-5 w-5 text-white" strokeWidth={2.5} />
+    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-900 selection:bg-slate-200 antialiased font-sans flex flex-col justify-center items-center px-4 pb-8">
+      <div className="flex flex-col items-center mb-4.5 text-center">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="bg-black p-[7px] rounded-lg">
+            <Layers className="h-4 w-4 text-white" strokeWidth={2} />
           </div>
-          <span className="font-bold text-[20px] tracking-tight text-black">
+          <span className="font-semibold text-[15px] tracking-tight text-slate-950">
             Flowboard
           </span>
         </Link>
+      </div>
 
-        <Card className="w-full max-w-sm shadow-sm border-slate-200">
-          <CardHeader className="text-center pb-0">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription className="text-slate-500 mt-1">
-              Enter your details to continue collaborating
-            </CardDescription>
-          </CardHeader>
+      <Card className="w-full max-w-[380px] rounded-xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+        <CardHeader className="text-center pt-6 pb-0 px-6 flex flex-col gap-1 items-center">
+          <CardTitle className="text-xl font-semibold tracking-tight text-slate-950">
+            Welcome back
+          </CardTitle>
+          <CardDescription className="text-[13px] text-slate-500 font-normal">
+            Sign in to continue.
+          </CardDescription>
+        </CardHeader>
 
-          {/* Form wrapper enables instant Enter-key submit and browser autofill support */}
-          <form onSubmit={handleSignin}>
-            <CardContent className="grid gap-4 mt-6">
-              <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  className="bg-transparent border-input"
-                  ref={usernameRef}
-                  id="username"
-                  name="username"
-                  type="text"
-                  placeholder="aditya123"
-                  autoComplete="username"
-                  disabled={loading}
-                />
+        <CardContent className="pt-5 pb-6 px-6">
+          <form onSubmit={handleSignin} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-[13px] font-medium text-slate-700">
+                Email
+              </Label>
+              <Input
+                ref={emailRef}
+                id="email"
+                name="email"
+                type="email"
+                placeholder="me@example.com"
+                autoComplete="email"
+                disabled={loading}
+                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[13px] font-medium text-slate-700">
+                Password
+              </Label>
+              <Input
+                ref={passwordRef}
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={loading}
+                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
+              />
+            </div>
+
+            {error && (
+              <div className="p-2.5 bg-red-50/80 border border-red-200/80 rounded-lg text-center">
+                <p className="text-xs font-medium text-red-600">{error}</p>
               </div>
+            )}
 
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
-                <Input
-                  className="bg-transparent border-input"
-                  ref={passwordRef}
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  disabled={loading}
-                />
-              </div>
-            </CardContent>
-
-            <CardFooter className="flex flex-col gap-4 mt-2">
-              {error && (
-                <div className="w-full p-2 bg-red-50 border border-red-200 rounded-md text-center">
-                  <p className="text-sm font-medium text-red-600">{error}</p>
-                </div>
-              )}
-
+            <div className="pt-1.5 space-y-3">
               <Button
                 type="submit"
-                className="w-full cursor-pointer bg-black text-white hover:bg-slate-800"
+                className="w-full h-10 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-sm font-medium gap-2 transition-colors duration-150"
                 disabled={loading}
               >
-                {loading ? "Signing in..." : "Signin"}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign in"
+                )}
               </Button>
 
-              <p className="text-sm text-center text-slate-600">
+              <p className="text-xs text-center text-slate-500">
                 Don&apos;t have an account?{" "}
-                <Link
-                  href="/signup"
-                  className="font-semibold text-black hover:underline"
-                >
+                <Link href="/signup" className="font-semibold text-slate-950 hover:underline">
                   Sign up
                 </Link>
               </p>
-            </CardFooter>
+            </div>
           </form>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
