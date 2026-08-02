@@ -15,8 +15,6 @@ export default async function Page({ params }: PageProps) {
   // jo bhi available ho (roomId ya roomid), use utha lo
   const finalRoomId = resolvedParams.roomId || resolvedParams.roomid;
 
-  console.log("Server received Room ID:", finalRoomId);
-
   // agar kuch bhi nahi mila, toh crash hone se bachao
   if (!finalRoomId || finalRoomId === "undefined") {
     return (

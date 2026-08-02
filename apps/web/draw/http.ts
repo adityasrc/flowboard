@@ -1,9 +1,9 @@
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
 
-interface ChatMessage {
-    id: string;
-    message: string;
+interface DbShape {
+    id: number;
+    shapeData: string; // JSON string containing { shape: Shape }
 }
 
 export async function getExistingShapes(roomid: string) {
@@ -15,23 +15,30 @@ export async function getExistingShapes(roomid: string) {
             console.warn("Storage access blocked:", err);
         }
 
-        const res = await axios.get(`${HTTP_BACKEND}/chats/${roomid}`, {
+        if (!token) {
+            if (typeof window !== "undefined") {
+                window.location.replace("/signin");
+            }
+            return [];
+        }
+
+        const res = await axios.get(`${HTTP_BACKEND}/api/v1/shapes/${roomid}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
         });
 
-        const messages: ChatMessage[] = res.data.messages || [];
+        const dbShapes: DbShape[] = res.data.shapes || [];
 
-        // Using reduce/filter ensures one corrupted JSON payload in PostgreSQL 
+        // Using map/filter ensures one corrupted JSON payload in PostgreSQL
         // doesn't crash the entire canvas rendering loop
-        const shapes = messages
-            .map((msg) => {
+        const shapes = dbShapes
+            .map((row) => {
                 try {
-                    const shapeData = JSON.parse(msg.message);
-                    return shapeData.shape || null;
+                    const parsed = JSON.parse(row.shapeData);
+                    return parsed.shape || null;
                 } catch (parseErr) {
-                    console.warn("Skipping corrupted shape payload from DB:", msg.id);
+                    console.warn("Skipping corrupted shape payload from DB:", row.id);
                     return null;
                 }
             })
@@ -39,11 +46,25 @@ export async function getExistingShapes(roomid: string) {
 
         return shapes;
     } catch (err: unknown) {
-        // Authoritative check for Optimistic Routing: If room doesn't exist in DB,
-        // send user back without trapping them in a browser 'Back' button loop.
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-            alert("Workspace not found! Redirecting to dashboard...");
-            window.location.replace("/dashboard");
+        if (axios.isAxiosError(err)) {
+            if (err.response?.status === 404) {
+                if (typeof window !== "undefined") {
+                    window.location.replace("/dashboard?error=not_found");
+                }
+            } else if (err.response?.status === 403) {
+                if (typeof window !== "undefined") {
+                    window.location.replace("/dashboard?error=access_denied");
+                }
+            } else if (err.response?.status === 401) {
+                try {
+                    localStorage.removeItem("token");
+                } catch {}
+                if (typeof window !== "undefined") {
+                    window.location.replace("/signin");
+                }
+            } else {
+                console.error("Failed to fetch existing workspace shapes:", err);
+            }
         } else {
             console.error("Failed to fetch existing workspace shapes:", err);
         }

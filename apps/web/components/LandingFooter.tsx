@@ -7,15 +7,9 @@ export function LandingFooter() {
     <footer className="border-t border-slate-100 bg-white">
       <div className="max-w-6xl mx-auto px-5 py-9">
 
-        {/* 
-          * Desktop layout keeps the brand and copyright pinned to the edges, 
-          * allowing the social links to remain visually centered regardless 
-          * of the width of the side content.
-          * Mobile stacks everything vertically. 
-          */}
         <div className="flex flex-col items-center gap-5 sm:relative sm:flex-row sm:justify-center sm:items-center sm:gap-0">
 
-          {/* Brand — absolute left on sm+ */}
+
           <div className="flex items-center gap-2.5 sm:absolute sm:left-0">
             <div className="bg-black p-[6px] rounded-md shrink-0">
               <Layers className="h-3.5 w-3.5 text-white" strokeWidth={2} />
@@ -30,7 +24,6 @@ export function LandingFooter() {
             </div>
           </div>
 
-          {/* Social links — truly centered */}
           <div className="flex items-center gap-6">
             <a
               href="https://github.com/adityasrc"
@@ -58,7 +51,6 @@ export function LandingFooter() {
             </a>
           </div>
 
-          {/* Copyright — absolute right on sm+ */}
           <p className="text-xs font-mono text-slate-300 sm:absolute sm:right-0">
             &copy; {currentYear} Flowboard
           </p>

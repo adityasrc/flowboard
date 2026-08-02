@@ -8,14 +8,14 @@ datasource db {
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  name     String
-  email    String  @unique
-  password String
+  id          Int     @id @default(autoincrement())
+  name        String
+  email       String  @unique
+  password    String
 
-  joinedRooms  Room[] @relation("RoomMembers")
-  rooms    Room[]
-  shapes    Shape[]
+  joinedRooms Room[] @relation("RoomMembers")
+  rooms       Room[]
+  shapes      Shape[]
 }
 
 model Room {
@@ -23,9 +23,9 @@ model Room {
   slug      String   @unique
   createdAt DateTime @default(now())
   adminId   Int
-  members User[] @relation("RoomMembers")
+  members   User[] @relation("RoomMembers")
   admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  shapes     Shape[]
+  shapes    Shape[]
 
   @@index([adminId])
 }
