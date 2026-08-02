@@ -1,225 +1,250 @@
-"use client";
-
-import { useState, useEffect } from "react";
+// Note: Keeping this as a Server Component for performance
 import Link from "next/link";
-import { ArrowRight, Github, Zap, Cpu, ShieldCheck } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  ArrowRight,
+  GithubIcon,
+  Terminal,
+  Zap,
+  Database,
+  ShieldCheck,
+  Radio,
+  Cpu,
+  RefreshCcw,
+} from "lucide-react";
 import { LandingHeader } from "@/components/LandingHeader";
 import { LandingFooter } from "@/components/LandingFooter";
-import { HTTP_BACKEND } from "@/config";
+import { CanvasMockup } from "@/components/CanvasMockup";
+import { Button } from "@/components/ui/button";
+
+
+const ARCH_CARDS = [
+  {
+    iconName: "Radio",
+    title: "Native WebSocket Server",
+    tag: "ws · no Socket.io",
+    body: "Built directly on the ws library instead of Socket.io, avoiding polling fallbacks and extra abstraction layers. Incoming JSON messages are broadcast directly to room participants with minimal overhead.",
+  },
+  {
+    iconName: "Database",
+    title: "O(1) LRU Cache",
+    tag: "Map-based · 500-entry cap",
+    body: "A custom LRU cache backed by a JavaScript Map eliminates repeated database round-trips. After the first lookup, slug-to-roomId resolution becomes an O(1) cache hit.",
+  },
+  {
+    iconName: "ShieldCheck",
+    title: "WebSocket Authentication",
+    tag: "Sec-WebSocket-Protocol · DB check",
+    body: "The JWT is sent via the Sec-WebSocket-Protocol header instead of a URL query param, preventing tokens from appearing in proxy access logs. The server cross-references the database to confirm membership before joining the collaboration session.",
+  },
+  {
+    iconName: "RefreshCcw",
+    title: "FIFO Offline Queue + Backoff",
+    tag: "offlineQueue · exp. backoff",
+    body: "When the WebSocket is offline, draw events are stored in an in-memory FIFO queue. Reconnection uses exponential backoff (1s to 30s) and flushes the queue in-order before new events are sent.",
+  },
+  {
+    iconName: "Cpu",
+    title: "RAF-Throttled Render Loop",
+    tag: "requestAnimationFrame · HiDPI",
+    body: "In-progress shape previews are drawn inside a requestAnimationFrame callback, coalescing multiple rapid mouse events into a single paint per frame. This prevents main-thread blocking, reducing unnecessary paints and keeping interactions smooth.",
+  },
+  {
+    iconName: "Zap",
+    title: "Async Fire-and-Forget DB Writes",
+    tag: "non-blocking · Prisma",
+    body: "Real-time collaboration should never wait for database writes. Updates are broadcast immediately while persistence happens asynchronously in the background, ensuring a slow database never blocks the drawing experience.",
+  },
+];
+
+const ICON_MAP: Record<string, ReactNode> = {
+  Radio: <Radio size={20} strokeWidth={1.5} />,
+  Database: <Database size={20} strokeWidth={1.5} />,
+  ShieldCheck: <ShieldCheck size={20} strokeWidth={1.5} />,
+  RefreshCcw: <RefreshCcw size={20} strokeWidth={1.5} />,
+  Cpu: <Cpu size={20} strokeWidth={1.5} />,
+  Zap: <Zap size={20} strokeWidth={1.5} />,
+};
+
+const TIMELINE = [
+  {
+    n: "01",
+    title: "Client Captures & Queues Input",
+    body: "Pointer movements are filtered to remove redundant points before a completed shape is serialized and sent over WebSockets. If the connection is unavailable, events are queued locally and replayed in order once the client reconnects.",
+  },
+  {
+    n: "02",
+    title: "Server Verifies, Caches, then Broadcasts",
+    body: "The server validates room membership once, caches slug-to-room mappings in an LRU cache, and broadcasts updates directly to connected participants without repeated database lookups.",
+  },
+  {
+    n: "03",
+    title: "DB Write is Fire-and-Forget",
+    body: "Updates are broadcast immediately while persistence happens asynchronously in the background. A slow database never delays real-time collaboration, and clients load the latest persisted state when joining a room.",
+  },
+  {
+    n: "04",
+    title: "Peers Render via RAF",
+    body: "Incoming updates are rendered on the HTML5 Canvas, while in-progress previews are synchronized with requestAnimationFrame to keep drawing smooth under rapid pointer movement.",
+  },
+];
+
+const ROADMAP = [
+  {
+    title: "Redis pub/sub for horizontal scaling",
+    body: "Room state is currently maintained in-process. Introducing Redis Pub/Sub would allow multiple WebSocket servers to synchronize rooms across instances, enabling horizontal scaling.",
+  },
+  {
+    title: "Worker queue for DB writes",
+    body: "Background writes work well under normal load, but high-traffic sessions could overwhelm the database connection pool. A worker queue would decouple persistence from real-time collaboration.",
+  },
+  {
+    title: "Operational Transform or CRDT for conflict resolution",
+    body: "Today, concurrent edits follow a last-write-wins model. An Operational Transform or CRDT layer would enable conflict-free collaborative editing at scale.",
+  },
+];
+
 
 export default function Index() {
-  const [imgError, setImgError] = useState(false);
-
-  // Pre-warm the backend on page load — the render server spins down after ~15 min of inactivity
-  useEffect(() => {
-    fetch(`${HTTP_BACKEND}/`).catch(() => { });
-  }, []);
-
   return (
-    <div className="min-h-screen bg-[#fafafa] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-900 selection:bg-slate-200 antialiased font-sans flex flex-col">
+    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-900 selection:bg-slate-200 antialiased font-sans flex flex-col">
       <LandingHeader />
 
       <main className="flex-1">
-        <section className="pt-24 pb-12 md:pt-32 md:pb-16 px-6 max-w-5xl mx-auto text-center flex flex-col items-center">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-slate-950 leading-[1.08] mb-6">
-            Real-time whiteboarding,<br className="hidden sm:block" />
-            built on native WebSockets.
+
+        <section className="pt-28 pb-14 md:pt-36 md:pb-16 px-6 max-w-5xl mx-auto text-center flex flex-col items-center">
+
+          <div className="mb-7 inline-flex items-center gap-2 border border-slate-200/80 bg-white rounded-full px-3.5 py-1.5 text-[11.5px] font-mono text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+            <Terminal size={12} className="text-slate-400 shrink-0" />
+            TypeScript · Turborepo
+          </div>
+
+          <h1 className="text-4xl sm:text-6xl md:text-[72px] font-semibold tracking-tighter leading-[1.1] mb-5">
+            <span className="text-neutral-900">Draw together in real time.</span>
+            <br className="hidden sm:block" />
+            <span className="text-slate-400">Built on native WebSockets.</span>
           </h1>
 
-          {/* max-w-4xl aur zero <br/> tags ensures text spreads horizontally across the screen */}
-          <p className="text-[16px] md:text-[18px] text-slate-600 max-w-4xl mx-auto mb-10 leading-relaxed font-normal px-2">
-            Engineered to avoid Socket.io overhead using native WebSockets. Includes a custom Node.js backend with JWT-based authentication.
+          <p className="text-base md:text-lg text-slate-500 max-w-xl mx-auto mb-10 leading-relaxed font-normal">
+            A full-stack collaborative canvas with a custom Node.js WebSocket server, JWT authentication, and PostgreSQL persistence, built without third-party real-time SaaS.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto mb-16">
-            <Link
-              href="/dashboard"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-950 text-white hover:bg-slate-800 text-[14px] font-medium h-11 px-7 rounded-xl shadow-sm transition-all duration-200"
-            >
-              Start drawing
-              <ArrowRight size={16} />
-            </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto mb-[42px]">
+            <Button asChild className="w-full sm:w-auto rounded-lg gap-2" size="lg">
+              <Link href="/dashboard">
+                Start drawing
+                <ArrowRight size={15} />
+              </Link>
+            </Button>
 
-            <a
-              href="https://github.com/adityasrc/flowboard"
-              target="_blank"
-              rel="noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-[14px] font-medium text-slate-700 bg-white border border-slate-200 hover:text-slate-950 hover:bg-slate-50 hover:border-slate-300 h-11 px-6 rounded-xl shadow-xs transition-all duration-200"
-            >
-              <Github size={16} />
-              View source
-            </a>
+            <Button asChild className="w-full sm:w-auto rounded-lg gap-2" size="lg" variant="outline">
+              <a
+                href="https://github.com/adityasrc/flowboard"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <GithubIcon size={15} />
+                View source
+              </a>
+            </Button>
           </div>
+
+          <p className="text-[11.5px] font-mono text-slate-400 mb-8 tracking-wide">
+            TypeScript · React / Next.js · Node.js · ws · PostgreSQL · Prisma · Rough.js
+          </p>
 
           <div className="w-full max-w-5xl mx-auto">
-            <div className="relative rounded-2xl bg-white/80 border border-slate-200/80 p-2 shadow-xl shadow-slate-950/5">
-              <div className="rounded-xl overflow-hidden border border-slate-200/60 bg-slate-900">
-                <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-slate-700" />
-                    <div className="w-3 h-3 rounded-full bg-slate-700" />
-                    <div className="w-3 h-3 rounded-full bg-slate-700" />
-                  </div>
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-800/80 border border-slate-700/50 rounded-md text-[11px] font-mono text-slate-300">
-                    flowboard.app/canvas/live-sync
-                  </div>
-                  <div className="w-12" />
-                </div>
-
-                {imgError ? (
-                  <div className="aspect-video md:aspect-21/9 bg-slate-950 flex flex-col items-center justify-center gap-2 p-6">
-                    <p className="text-[13px] text-slate-400 font-medium">Actual App UI Screen</p>
-                  </div>
-                ) : (
-                  <img
-                    src="/actualUI.png"
-                    alt="Flowboard Real-time Canvas"
-                    className="w-full h-auto block bg-slate-950"
-                    onError={() => setImgError(true)}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center mt-6 text-center gap-2">
-            <p className="text-[14px] font-medium text-slate-500">
-              Actual app UI, not a static mockup.
-            </p>
-            <p className="text-[13px] font-mono text-slate-400">
-              Tech Stack: Next.js · Node.js · ws · PostgreSQL · Prisma · Tailwind · Rough.js
-            </p>
+            <CanvasMockup />
           </div>
         </section>
 
-        <section className="py-16 md:py-24 px-6 max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-8 md:p-12 shadow-xs text-center max-w-3xl mx-auto">
-            <h2 className="text-xl md:text-2xl font-bold text-slate-950 mb-3 tracking-tight">
-              Why Flowboard?
+        <section id="features" className="pt-12 pb-16 md:pt-14 md:pb-20 px-6 max-w-6xl mx-auto scroll-mt-14">
+          <div className="text-center max-w-2xl mx-auto mb-7 md:mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-950 mb-2.5">
+              Engineering Decisions
             </h2>
-            <p className="text-[15px] md:text-[16px] text-slate-600 leading-relaxed max-w-2xl mx-auto">
-              Most online canvases optimize for an endless list of features.
-              <strong> Flowboard focuses strictly on low-latency communication, simple architecture, and state synchronization.</strong> It serves as a technical demonstration of handling WebSocket data pipelines without relying on third-party real-time SaaS providers.
+            <p className="text-base text-slate-500 leading-relaxed">
+              Six concrete engineering choices in this codebase, each with a clear technical rationale.
             </p>
           </div>
-        </section>
 
-        <section id="features" className="py-12 px-6 max-w-5xl mx-auto scroll-mt-24">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-950 mb-3">Architecture Decisions</h2>
-            <p className="text-[16px] text-slate-600">The engineering principles behind the canvas and networking layers.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-900 mb-5">
-                  <Zap size={20} />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            {ARCH_CARDS.map(({ iconName, title, tag, body }) => (
+              <article
+                key={title}
+                className="group bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all duration-200 flex flex-col gap-4.5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 text-slate-600 group-hover:bg-slate-950 group-hover:text-white group-hover:border-slate-950 transition-all duration-200">
+                    {ICON_MAP[iconName]}
+                  </div>
+                  <span className="text-[10.5px] font-mono text-slate-400 bg-slate-50 border border-slate-200/80 rounded px-2 py-0.5 whitespace-nowrap leading-none mt-1">
+                    {tag}
+                  </span>
                 </div>
-                <h3 className="text-[17px] font-bold text-slate-950 mb-2.5">Native WebSockets</h3>
-                <p className="text-[14px] text-slate-600 leading-relaxed">
-                  Bypassed Socket.io completely. Using the native ws library allows the server to process stringified JSON payloads directly, reducing CPU overhead during collaborative drawing sessions.
-                </p>
-              </div>
-            </div>
 
-            <div className="bg-white p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-900 mb-5">
-                  <Cpu size={20} />
+                <div>
+                  <h3 className="text-[15px] font-bold tracking-tight leading-snug text-slate-950 mb-2">{title}</h3>
+                  <p className="text-sm text-slate-500 leading-[1.65]">{body}</p>
                 </div>
-                <h3 className="text-[17px] font-bold text-slate-950 mb-2.5">Raw Canvas & Rough.js</h3>
-                <p className="text-[14px] text-slate-600 leading-relaxed">
-                  Avoids monolithic canvas frameworks. The interaction layer and state management are built directly on the HTML5 Canvas API, utilizing Rough.js for a hand-drawn aesthetic.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-900 mb-5">
-                  <ShieldCheck size={20} />
-                </div>
-                <h3 className="text-[17px] font-bold text-slate-950 mb-2.5">Custom Auth & Persistence</h3>
-                <p className="text-[14px] text-slate-600 leading-relaxed">
-                  Uses stateless JWT verification for connection handshakes. Board states are persisted asynchronously in PostgreSQL via Prisma, allowing users to rejoin and fetch existing room states cleanly.
-                </p>
-              </div>
-            </div>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section className="py-20 px-6 max-w-4xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+
+        <section className="pt-12 pb-12 md:pt-14 md:pb-14 px-6 max-w-3xl mx-auto">
+          <div className="text-center mb-14">
             <h2 className="text-3xl font-bold tracking-tight text-slate-950 mb-3">How It Works</h2>
-            <p className="text-[16px] text-slate-600">The real-time data synchronization flow.</p>
+            <p className="text-base text-slate-500">The real-time data flow, end to end.</p>
           </div>
 
-          <div className="relative border-l border-slate-200 ml-4 md:ml-32 space-y-12 pb-4">
-            <div className="relative pl-8 md:pl-10">
-              <div className="absolute -left-3.5 top-0.5 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-[11px] font-bold text-slate-900 shadow-xs">
-                01
+          <div className="relative border-l border-slate-200 ml-4 md:ml-24 space-y-12 pb-4">
+            {TIMELINE.map(({ n, title, body }) => (
+              <div key={n} className="relative pl-8 md:pl-10">
+                <div className="absolute -left-3.5 top-0.5 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-[11px] font-bold text-slate-900 shadow-xs">
+                  {n}
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-950 mb-1.5">{title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed max-w-xl">{body}</p>
               </div>
-              <h3 className="text-[16px] font-bold text-slate-950 mb-1.5">Client Captures Input</h3>
-              <p className="text-[14px] text-slate-600 leading-relaxed max-w-xl">
-                Mouse movement and geometry coordinates are captured locally and streamed across the open WebSocket connection without blocking the main browser thread.
-              </p>
-            </div>
-
-            <div className="relative pl-8 md:pl-10">
-              <div className="absolute -left-3.5 top-0.5 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-[11px] font-bold text-slate-900 shadow-xs">
-                02
-              </div>
-              <h3 className="text-[16px] font-bold text-slate-950 mb-1.5">Server Persists & Broadcasts</h3>
-              <p className="text-[14px] text-slate-600 leading-relaxed max-w-xl">
-                The Node.js backend broadcasts shape payloads to all peers subscribed to the room, while asynchronously writing the state to PostgreSQL in the background.
-              </p>
-            </div>
-
-            <div className="relative pl-8 md:pl-10">
-              <div className="absolute -left-3.5 top-0.5 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-[11px] font-bold text-slate-900 shadow-xs">
-                03
-              </div>
-              <h3 className="text-[16px] font-bold text-slate-950 mb-1.5">Clients Reconcile State</h3>
-              <p className="text-[14px] text-slate-600 leading-relaxed max-w-xl">
-                Receiving clients render incoming coordinate data onto their local canvas layer immediately upon receipt, maintaining a responsive drawing experience.
-              </p>
-            </div>
+            ))}
           </div>
         </section>
 
-        <section className="py-16 px-6 max-w-3xl mx-auto">
+
+        <section className="pt-10 pb-10 md:pt-12 md:pb-12 px-6 max-w-3xl mx-auto">
           <div className="bg-slate-900 text-white rounded-2xl p-8 md:p-10 shadow-xl">
-            <h2 className="text-2xl font-bold tracking-tight mb-2">Technical Roadmap</h2>
-            <p className="text-[14px] text-slate-400 mb-8">Architectural improvements planned for future iterations.</p>
+            <h2 className="text-2xl font-bold tracking-tight mb-1.5">Technical Roadmap</h2>
+            <p className="text-sm text-slate-400 mb-8">Planned architectural improvements (not yet shipped).</p>
 
-            <div className="space-y-4 relative z-10">
-              <div className="flex items-start gap-3.5 text-[14px] text-slate-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
-                <div>
-                  <strong className="text-white">Redis-backed room scaling:</strong> Moving in-memory room state (<code className="text-slate-300 bg-slate-800 px-1 py-0.5 rounded text-[12px] font-mono">users[]</code>) to an external Redis pub/sub broker to support horizontal multi-server scaling.
+            <div className="space-y-5">
+              {ROADMAP.map(({ title, body }) => (
+                <div key={title} className="flex items-start gap-3.5 text-sm text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2 shrink-0" />
+                  <div>
+                    <strong className="text-white block mb-0.5">{title}</strong>
+                    <span className="text-slate-400 leading-relaxed">{body}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3.5 text-[14px] text-slate-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
-                <div>
-                  <strong className="text-white">Message Queue Integration:</strong> Offloading database writes to an asynchronous worker queue to prevent connection pool exhaustion during heavy collaborative drawing sessions.
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="py-20 px-6 text-center max-w-xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 mb-3">Experience Flowboard in action</h2>
-          <p className="text-[15px] text-slate-600 mb-8">Create a workspace and test real-time collaboration across devices.</p>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center justify-center gap-2 bg-slate-950 text-white hover:bg-slate-800 text-[14px] font-medium h-11 px-8 rounded-xl shadow-sm transition-all duration-200"
-          >
-            Open Canvas
-            <ArrowRight size={16} />
-          </Link>
+        <section className="pt-12 pb-20 md:pt-14 md:pb-24 px-6 text-center max-w-xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 mb-3">
+            Create a room and collaborate in real time.
+          </h2>
+          <p className="text-[15px] text-slate-500 mb-8">
+            Share the URL with anyone with no plugins or installs required. Shapes sync over a raw WebSocket.
+          </p>
+          <Button asChild className="rounded-lg gap-2" size="lg">
+            <Link href="/dashboard">
+              Start drawing
+              <ArrowRight size={15} />
+            </Link>
+          </Button>
         </section>
 
       </main>
