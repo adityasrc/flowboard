@@ -8,7 +8,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -16,31 +15,28 @@ import { useRef, useState, type FormEvent } from "react";
 import { HTTP_BACKEND } from "@/config";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { Layers, Loader2 } from "lucide-react";
 
 export default function Signup() {
-  const route = useRouter();
+  const router = useRouter();
 
   const nameRef = useRef<HTMLInputElement>(null);
-  const usernameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Changed to a standard form submit handler so pressing 'Enter' key submits smoothly
   async function handleSignup(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const name = nameRef.current?.value.trim();
-    const username = usernameRef.current?.value.trim();
     const email = emailRef.current?.value.trim();
     const password = passwordRef.current?.value;
 
     setError("");
 
-    if (!name || !username || !email || !password) {
+    if (!name || !email || !password) {
       setError("All fields are required");
       return;
     }
@@ -53,15 +49,13 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      await axios.post(`${HTTP_BACKEND}/signup`, {
+      await axios.post(`${HTTP_BACKEND}/api/v1/auth/signup`, {
         name,
-        username,
         email,
         password,
       });
-      route.push("/signin");
+      router.push("/signin");
     } catch (err: unknown) {
-      // Type-safe Axios error handling replaces 'any'
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
@@ -73,108 +67,109 @@ export default function Signup() {
   }
 
   return (
-    <div className="w-screen h-screen flex flex-col justify-center items-center bg-slate-50 px-4">
+    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-900 selection:bg-slate-200 antialiased font-sans flex flex-col justify-center items-center px-4 pb-8">
+      <div className="flex flex-col items-center mb-4.5 text-center">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="bg-black p-[7px] rounded-lg">
+            <Layers className="h-4 w-4 text-white" strokeWidth={2} />
+          </div>
+          <span className="font-semibold text-[15px] tracking-tight text-slate-950">
+            Flowboard
+          </span>
+        </Link>
+      </div>
 
-      <Link href="/" className="flex items-center gap-2.5 mb-8 group">
-        <div className="bg-black p-1.5 rounded-xl transition-transform group-hover:rotate-6">
-          <Layers className="h-5 w-5 text-white" strokeWidth={2.5} />
-        </div>
-        <span className="font-bold text-[20px] tracking-tight text-black">
-          Flowboard
-        </span>
-      </Link>
-
-      <Card className="w-full max-w-sm shadow-sm border-slate-200">
-        <CardHeader className="pb-0 text-center">
-          <CardTitle>Create an account</CardTitle>
-          <CardDescription>
-            Enter your details to start collaborating
+      <Card className="w-full max-w-[380px] rounded-xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+        <CardHeader className="text-center pt-6 pb-0 px-6 flex flex-col gap-1 items-center">
+          <CardTitle className="text-xl font-semibold tracking-tight text-slate-950">
+            Create your account
+          </CardTitle>
+          <CardDescription className="text-[13px] text-slate-500 font-normal">
+            Build together from anywhere.
           </CardDescription>
         </CardHeader>
 
-        {/* Form wrapper enables Enter key submission and seamless password manager autofill */}
-        <form onSubmit={handleSignup}>
-          <CardContent>
-            <div className="grid gap-4 mt-4"> {/* spacing theek ki */}
-              <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  ref={nameRef}
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="Aditya"
-                  autoComplete="name"
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  ref={usernameRef}
-                  id="username"
-                  name="username"
-                  type="text"
-                  placeholder="aditya123"
-                  autoComplete="username"
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                {/* proper spacing ke liye */}
-                <Label htmlFor="email">Email</Label>
-                {/* htmlfor and id same hone chaiye */}
-                <Input
-                  ref={emailRef}
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="adit@gmail.com"
-                  autoComplete="email"
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  ref={passwordRef}
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  disabled={loading}
-                />
-              </div>
+        <CardContent className="pt-5 pb-6 px-6">
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-[13px] font-medium text-slate-700">
+                Name
+              </Label>
+              <Input
+                ref={nameRef}
+                id="name"
+                name="name"
+                type="text"
+                placeholder="John Doe"
+                autoComplete="name"
+                disabled={loading}
+                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
+              />
             </div>
-          </CardContent>
 
-          <CardFooter className="flex flex-col gap-4 mt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-[13px] font-medium text-slate-700">
+                Email
+              </Label>
+              <Input
+                ref={emailRef}
+                id="email"
+                name="email"
+                type="email"
+                placeholder="me@example.com"
+                autoComplete="email"
+                disabled={loading}
+                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[13px] font-medium text-slate-700">
+                Password
+              </Label>
+              <Input
+                ref={passwordRef}
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="new-password"
+                disabled={loading}
+                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
+              />
+            </div>
+
             {error && (
-              <div className="w-full p-2 bg-red-50 border border-red-200 rounded-md text-center">
-                <p className="text-sm font-medium text-red-600">{error}</p>
+              <div className="p-2.5 bg-red-50/80 border border-red-200/80 rounded-lg text-center">
+                <p className="text-xs font-medium text-red-600">{error}</p>
               </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full cursor-pointer bg-black text-white hover:bg-slate-800"
-              disabled={loading}
-            >
-              {loading ? "Signing up..." : "Signup"}
-            </Button>
+            <div className="pt-1.5 space-y-3">
+              <Button
+                type="submit"
+                className="w-full h-10 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-sm font-medium gap-2 transition-colors duration-150"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  "Create account"
+                )}
+              </Button>
 
-            <p className="text-sm text-center text-slate-600">
-              Already have an account?{" "}
-              <Link href="/signin" className="font-semibold text-black hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+              <p className="text-xs text-center text-slate-500">
+                Already have an account?{" "}
+                <Link href="/signin" className="font-semibold text-slate-950 hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );
