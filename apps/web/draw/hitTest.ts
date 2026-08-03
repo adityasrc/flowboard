@@ -1,14 +1,26 @@
 import { Shape } from "./types";
+import { TEXT_FONT_SIZE } from "./renderer";
 
-// Checks if a point (x, y) falls within a shape's hit area.
-// The tolerance parameter adds a small margin for easier clicking.
 export function isPointInShape(
   x: number,
   y: number,
   shape: Shape,
   tolerance: number,
 ): boolean {
-  if (shape.type === "Rect" || shape.type === "Diamond") {
+  if (shape.type === "Text") {
+    const approxCharWidth = TEXT_FONT_SIZE * 0.5;
+    const width = shape.text.length * approxCharWidth;
+    const height = TEXT_FONT_SIZE;
+
+    return (
+      x >= shape.x - tolerance &&
+      x <= shape.x + width + tolerance &&
+      y >= shape.y - tolerance &&
+      y <= shape.y + height + tolerance
+    );
+  }
+
+  if (shape.type === "Rect") {
     const minX = Math.min(shape.x, shape.x + shape.width);
     const maxX = Math.max(shape.x, shape.x + shape.width);
 
@@ -21,6 +33,22 @@ export function isPointInShape(
       y >= minY - tolerance &&
       y <= maxY + tolerance
     );
+  }
+
+  if (shape.type === "Diamond") {
+    const centerX = shape.x + shape.width / 2;
+    const centerY = shape.y + shape.height / 2;
+    const halfWidth = Math.abs(shape.width) / 2;
+    const halfHeight = Math.abs(shape.height) / 2;
+
+    if (halfWidth === 0 || halfHeight === 0) {
+      return false;
+    }
+
+    const dx = Math.abs(x - centerX);
+    const dy = Math.abs(y - centerY);
+
+    return dx / halfWidth + dy / halfHeight <= 1;
   }
 
   if (shape.type === "Circle") {
