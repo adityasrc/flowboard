@@ -4,13 +4,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { HTTP_BACKEND } from "@/config";
 
-/**
- * Client-only wrapper for the landing page preview.
- * 
- * Keeps the landing page itself as a Server Component while handling:
- * - backend warm-up
- * - image loading fallback
- */
 export function CanvasMockup() {
   const [imgError, setImgError] = useState(false);
 

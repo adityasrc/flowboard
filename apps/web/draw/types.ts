@@ -1,6 +1,3 @@
-// Central shape type definitions for the whiteboard.
-// All other draw modules import from here — no circular dependency risk.
-
 export type Shape =
   | {
     type: "Rect";

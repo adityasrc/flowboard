@@ -1,7 +1,17 @@
 import type { RoughCanvas } from "roughjs/bin/canvas";
 import { Shape } from "./types";
 
-// Draws an arrow line with a two-segment arrowhead at the tip.
+export const TEXT_FONT_SIZE = 22;
+export const TEXT_FONT_FAMILY = '"Patrick Hand", cursive';
+export const TEXT_FONT = `${TEXT_FONT_SIZE}px ${TEXT_FONT_FAMILY}`;
+export const TEXT_BASELINE_OFFSET = 3;
+
+export interface RemoteCursor {
+  x: number;
+  y: number;
+  lastSeen: number;
+}
+
 export function drawArrow(
   rc: RoughCanvas,
   startX: number,
@@ -10,6 +20,10 @@ export function drawArrow(
   endY: number,
   seed: number,
 ) {
+  if (Math.hypot(endX - startX, endY - startY) < 4) {
+    return;
+  }
+
   rc.line(startX, startY, endX, endY, { stroke: "black", seed });
 
   const angle = Math.atan2(endY - startY, endX - startX);
@@ -25,8 +39,6 @@ export function drawArrow(
   rc.line(endX, endY, p2X, p2Y, { stroke: "black", seed });
 }
 
-// Clears the canvas and redraws all shapes from scratch.
-// Called whenever the shapes array changes (add, delete, undo, redo, incoming WS message).
 export function renderShapes(
   ctx: CanvasRenderingContext2D,
   rc: RoughCanvas,
@@ -72,10 +84,56 @@ export function renderShapes(
         { stroke: "black", seed: shape.seed },
       );
     } else if (shape.type === "Text") {
-      ctx.font = "24px sans-serif";
+      ctx.font = TEXT_FONT;
       ctx.textBaseline = "top";
-      ctx.fillStyle = "black";
-      ctx.fillText(shape.text, shape.x, shape.y + 3);
+      ctx.fillStyle = "#1f2937";
+      ctx.fillText(shape.text, shape.x, shape.y + TEXT_BASELINE_OFFSET);
     }
+  });
+}
+
+const CURSOR_COLORS = [
+  "#0f172a", // slate-950
+  "#334155", // slate-700
+  "#4f46e5", // indigo-600
+  "#047857", // emerald-700
+];
+
+function getCursorColor(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash << 5) - hash + userId.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % CURSOR_COLORS.length;
+  return CURSOR_COLORS[index];
+}
+
+export function renderCursors(
+  ctx: CanvasRenderingContext2D,
+  cursors: Map<string, RemoteCursor>,
+) {
+  cursors.forEach((cursor, userId) => {
+    ctx.save();
+    ctx.translate(cursor.x, cursor.y);
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 11);
+    ctx.lineTo(2.8, 8.5);
+    ctx.lineTo(4.8, 13);
+    ctx.lineTo(6.2, 12.3);
+    ctx.lineTo(4.5, 7.8);
+    ctx.lineTo(8.5, 7.8);
+    ctx.closePath();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = getCursorColor(userId);
+    ctx.lineWidth = 1.25;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+
+    ctx.restore();
   });
 }

@@ -61,15 +61,13 @@ export function RoomCanvas({ roomId }: CanvasProps) {
           return;
         }
 
-        // CRITICAL FIX: Kill the cold-start hint immediately once connected
         clearTimeout(coldStartTimer);
 
-        attempts = 0; // reset backoff on successful connection
+        attempts = 0;
         setSocket(ws);
         setLoadingText("Connecting to server...");
         ws.send(JSON.stringify({ type: "join_room", roomId }));
 
-        // Flush any messages that were queued while the socket was offline
         engineRef.current?.flushQueue();
       };
 
@@ -122,7 +120,6 @@ export function RoomCanvas({ roomId }: CanvasProps) {
     );
   }
 
-  // Directly returning Canvas keeps the React DOM tree clean and avoids nested wrappers
   return (
     <Canvas
       roomId={roomId}

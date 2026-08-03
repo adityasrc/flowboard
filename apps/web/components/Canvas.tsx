@@ -9,7 +9,7 @@ import {
   Eraser,
   Undo,
   Redo,
-  X,
+  LogOut,
   Download,
   Minus,
   MoveUpRight,
@@ -20,14 +20,15 @@ import { WhiteboardEngine } from "@/draw/WhiteboardEngine";
 import { useRouter } from "next/navigation";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CanvasProps {
   roomId: string;
@@ -49,17 +50,16 @@ export type Tool =
 
 export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [shapeCount, setShapeCount] = useState(0);
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<WhiteboardEngine | null>(null);
   const [selectedTool, setSelectedTool] = useState<Tool>("rect");
 
-  // Handles solid white background export so downloaded PNGs aren't transparent/black
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Create a temporary canvas to merge white background + drawing
     const tempCanvas = document.createElement("canvas");
     const tempCtx = tempCanvas.getContext("2d");
     if (!tempCtx) return;
@@ -67,11 +67,8 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
 
-    // Fill white background
     tempCtx.fillStyle = "#ffffff";
     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-    // Draw the actual drawing over the white background
     tempCtx.drawImage(canvas, 0, 0);
 
     const image = tempCanvas.toDataURL("image/png");
@@ -89,7 +86,6 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // High-DPI / Retina display scaling prevents blurry lines on MacBooks and 4K monitors
     const handleResize = () => {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = window.innerWidth * dpr;
@@ -103,12 +99,14 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
       gameRef.current?.render();
     };
 
-    handleResize(); // Initialize sizes immediately
+    handleResize();
 
-    const game = new WhiteboardEngine(canvas, roomId, socket);
+    const game = new WhiteboardEngine(canvas, roomId, socket, (count) => {
+      setShapeCount(count);
+    });
     game.setTool(selectedTool);
     gameRef.current = game;
-    onEngineReady?.(game); // Tell RoomCanvas about the engine so it can flush the queue on reconnect
+    onEngineReady?.(game);
 
     window.addEventListener("resize", handleResize);
 
@@ -128,36 +126,41 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
         backgroundSize: "32px 32px",
       }}
     >
-      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-        <DialogContent className="sm:max-w-md rounded-xl border-slate-100 shadow-lg">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold tracking-tight">
-              Leave Room?
-            </DialogTitle>
-            <DialogDescription className="text-[14px] text-slate-500 mt-1.5">
-              Are you sure you want to leave? Make sure you have saved your work before exiting.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-2 sm:space-x-3">
-            <Button
-              type="button"
-              variant="outline"
+      <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <AlertDialogContent className="sm:max-w-md rounded-xl border-slate-200/80 shadow-md p-6">
+          <AlertDialogHeader className="gap-1 text-left">
+            <AlertDialogTitle className="text-lg font-semibold tracking-tight text-slate-950">
+              Leave canvas?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-slate-500">
+              Any unsaved changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-3">
+            <AlertDialogCancel
+              className="h-9 px-3.5 text-[13px] rounded-lg border-slate-200 hover:bg-slate-50 text-slate-700 font-medium cursor-pointer"
               onClick={() => setShowLeaveDialog(false)}
             >
               Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="h-9 px-4 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-medium shadow-none cursor-pointer transition-colors"
               onClick={() => router.push("/dashboard")}
             >
               Leave
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <canvas ref={canvasRef} className="bg-transparent block absolute inset-0" />
+
+      {shapeCount === 0 && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-slate-300 font-medium flex flex-col items-center gap-1 select-none z-0">
+          <p>Start drawing...</p>
+          <p className="text-sm font-normal">Use the toolbar above to sketch</p>
+        </div>
+      )}
 
       <Topbar
         setSelectedTool={setSelectedTool}
@@ -186,15 +189,15 @@ function Topbar({
   onLeave: () => void;
   onDownload: () => void;
 }) {
+  const ICON_SIZE = 18;
+
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-xl shadow-md border border-slate-200/80 select-none">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md px-1.5 py-1.5 rounded-xl shadow-md border border-slate-200/80 select-none">
       <div className="flex gap-1 items-center">
-
-
         <IconButton
           onClick={() => setSelectedTool("pencil")}
           activated={selectedTool === "pencil"}
-          icon={<Pencil size={18} />}
+          icon={<Pencil size={ICON_SIZE} />}
           title="Pencil Tool (Freehand)"
           aria-label="Select Pencil Tool"
         />
@@ -202,7 +205,7 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("line")}
           activated={selectedTool === "line"}
-          icon={<Minus size={18} />}
+          icon={<Minus size={ICON_SIZE} />}
           title="Line Tool"
           aria-label="Select Line Tool"
         />
@@ -210,7 +213,7 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("arrow")}
           activated={selectedTool === "arrow"}
-          icon={<MoveUpRight size={18} />}
+          icon={<MoveUpRight size={ICON_SIZE} />}
           title="Arrow Tool"
           aria-label="Select Arrow Tool"
         />
@@ -218,7 +221,7 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("rect")}
           activated={selectedTool === "rect"}
-          icon={<RectangleHorizontalIcon size={18} />}
+          icon={<RectangleHorizontalIcon size={ICON_SIZE} />}
           title="Rectangle Tool"
           aria-label="Select Rectangle Tool"
         />
@@ -226,7 +229,7 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("circle")}
           activated={selectedTool === "circle"}
-          icon={<Circle size={18} />}
+          icon={<Circle size={ICON_SIZE} />}
           title="Circle Tool"
           aria-label="Select Circle Tool"
         />
@@ -234,7 +237,7 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("diamond")}
           activated={selectedTool === "diamond"}
-          icon={<Diamond size={18} />}
+          icon={<Diamond size={ICON_SIZE} />}
           title="Diamond Tool"
           aria-label="Select Diamond Tool"
         />
@@ -242,7 +245,7 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("text")}
           activated={selectedTool === "text"}
-          icon={<Type size={18} />}
+          icon={<Type size={ICON_SIZE} />}
           title="Text Tool"
           aria-label="Select Text Tool"
         />
@@ -252,15 +255,17 @@ function Topbar({
         <IconButton
           onClick={() => setSelectedTool("eraser")}
           activated={selectedTool === "eraser"}
-          icon={<Eraser size={18} />}
+          icon={<Eraser size={ICON_SIZE} />}
           title="Eraser Tool"
           aria-label="Select Eraser Tool"
         />
 
+        <div className="w-px h-4 bg-slate-200 mx-1" />
+
         <IconButton
           onClick={onUndo}
           activated={false}
-          icon={<Undo size={18} />}
+          icon={<Undo size={ICON_SIZE} />}
           title="Undo (Ctrl+Z)"
           aria-label="Undo last action"
         />
@@ -268,18 +273,17 @@ function Topbar({
         <IconButton
           onClick={onRedo}
           activated={false}
-          icon={<Redo size={18} />}
+          icon={<Redo size={ICON_SIZE} />}
           title="Redo (Ctrl+Y)"
           aria-label="Redo last action"
         />
 
         <div className="w-px h-4 bg-slate-200 mx-1" />
 
-
         <IconButton
           onClick={onDownload}
           activated={false}
-          icon={<Download size={18} />}
+          icon={<Download size={ICON_SIZE} />}
           title="Download Canvas as PNG"
           aria-label="Download Canvas"
         />
@@ -287,7 +291,7 @@ function Topbar({
         <IconButton
           onClick={onLeave}
           activated={false}
-          icon={<X size={18} />}
+          icon={<LogOut size={ICON_SIZE} />}
           title="Leave Room"
           aria-label="Leave Room"
         />

@@ -1,4 +1,3 @@
-// Note: Keeping this as a Server Component for performance
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {

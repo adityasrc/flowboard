@@ -1,8 +1,6 @@
 import { Shape } from "./types";
 import { Tool } from "../components/Canvas";
 
-// Constructs a Shape object from the tool and mouse coordinates captured on mouseUp.
-// Returns null for tools that don't produce a persistent shape (eraser, text, undo, redo).
 export function createShape(
   tool: Tool,
   startX: number,
@@ -57,6 +55,10 @@ export function createShape(
       };
 
     case "arrow":
+      if (Math.hypot(endX - startX, endY - startY) < 4) {
+        return null;
+      }
+
       return {
         type: "Arrow",
         startX,
