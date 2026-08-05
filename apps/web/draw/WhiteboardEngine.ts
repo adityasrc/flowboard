@@ -41,6 +41,7 @@ export class WhiteboardEngine {
   private currentPath: [number, number][] = [];
   private lastPencilPoint: [number, number] | null = null;
   private activeTextInput: HTMLInputElement | null = null;
+  private isDestroyed = false;
 
   // Remote Cursors
   private cursors: Map<string, RemoteCursor> = new Map();
@@ -82,6 +83,8 @@ export class WhiteboardEngine {
   }
 
   destroy() {
+    this.isDestroyed = true;
+
     this.canvas.removeEventListener("mousedown", this.handleMouseDown);
     this.canvas.removeEventListener("mousemove", this.handleMouseMove);
     window.removeEventListener("mouseup", this.handleMouseUp);
@@ -105,12 +108,27 @@ export class WhiteboardEngine {
     }
   }
 
-  initHandlers() {
+  async updateSocket(socket: WebSocket) {
+    this.socket = socket;
     this.initSocketHandlers();
-  }
+    this.flushQueue();
 
-  initMouseHandler() {
-    this.initMouseHandlers();
+    try {
+      const serverShapes = await getExistingShapes(this.roomId);
+      if (this.isDestroyed) return;
+      let hasNew = false;
+      for (const s of serverShapes) {
+        if (!this.shapes.some((existing) => existing.id === s.id)) {
+          this.shapes.push(s);
+          hasNew = true;
+        }
+      }
+      if (hasNew) {
+        this.render();
+      }
+    } catch (err) {
+      console.warn("Failed to sync shapes on reconnect:", err);
+    }
   }
 
   private initMouseHandlers() {
@@ -394,7 +412,7 @@ export class WhiteboardEngine {
       isCommitted = true;
 
       const rawText = input.value;
-      if (rawText.trim() === "") {
+      if (rawText.trim() === "" || this.isDestroyed) {
         cleanupInput();
         return;
       }
@@ -520,10 +538,44 @@ export class WhiteboardEngine {
   private safeSend(message: string) {
     if (this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(message);
-    } else {
-      this.offlineQueue.push(message);
-      console.warn("WebSocket offline: message queued");
+      return;
     }
+
+    // Drop cursor positions — they are ephemeral and do not need replay.
+    let parsed: { type: string; id?: string; message?: string } | null = null;
+    try { parsed = JSON.parse(message); } catch { /* not JSON, just queue it */ }
+
+    if (parsed?.type === "cursor") return;
+
+    // While offline, cancel opposing operations for the same shape ID
+    // so undo+redo cycles don't produce add/delete/add replays on reconnect.
+    if (parsed && (parsed.type === "shape" || parsed.type === "delete_shape")) {
+      const incomingId =
+        parsed.type === "delete_shape"
+          ? parsed.id
+          : (() => { try { return JSON.parse(parsed!.message!).shape?.id; } catch { return undefined; } })();
+
+      if (incomingId) {
+        const oppositeType = parsed.type === "shape" ? "delete_shape" : "shape";
+        let cancelIdx = -1;
+        for (let i = this.offlineQueue.length - 1; i >= 0; i--) {
+          try {
+            const qp = JSON.parse(this.offlineQueue[i]!);
+            if (qp.type !== oppositeType) continue;
+            const qId = oppositeType === "delete_shape"
+              ? qp.id
+              : JSON.parse(qp.message).shape?.id;
+            if (qId === incomingId) { cancelIdx = i; break; }
+          } catch { /* skip malformed entries */ }
+        }
+        if (cancelIdx !== -1) {
+          this.offlineQueue.splice(cancelIdx, 1);
+          return;
+        }
+      }
+    }
+
+    this.offlineQueue.push(message);
   }
 
   private getCoordinates(e: MouseEvent) {

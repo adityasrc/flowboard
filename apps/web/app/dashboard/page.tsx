@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [roomName, setRoomName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [isJoining, setIsJoining] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [slug, setSlug] = useState("");
@@ -179,15 +180,42 @@ export default function Dashboard() {
     fetchRooms();
   }, [router, fetchRooms]);
 
-  const handleJoinBySlug = () => {
+  const handleJoinBySlug = async () => {
     setJoinError("");
 
     const formattedSlug = generateSlug(slug);
 
-    if (formattedSlug.length >= 4) {
-      router.push(`/canvas/${formattedSlug}`);
-    } else {
+    if (formattedSlug.length < 4) {
       setJoinError("Canvas name must be at least 4 characters.");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/signin");
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      await axios.get(`${HTTP_BACKEND}/api/v1/shapes/${formattedSlug}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      router.push(`/canvas/${formattedSlug}`);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 404) {
+          setJoinError("Canvas not found. Please check the name.");
+        } else if (err.response?.status === 403) {
+          setJoinError("Access denied to this canvas.");
+        } else {
+          setJoinError("Something went wrong. Please try again.");
+        }
+      } else {
+        setJoinError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -255,9 +283,9 @@ export default function Dashboard() {
                 variant="outline"
                 className="h-9 px-3.5 text-[13px] font-medium text-slate-700 bg-white border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer shrink-0 shadow-xs"
                 onClick={handleJoinBySlug}
-                disabled={!slug.trim()}
+                disabled={!slug.trim() || isJoining}
               >
-                Join
+                {isJoining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Join"}
               </Button>
             </div>
             {joinError && (

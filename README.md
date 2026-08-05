@@ -1,122 +1,194 @@
 # Flowboard
 
-A minimal, lightning-fast collaborative whiteboard built from scratch to explore how real-time applications actually work under the hood.
+A collaborative whiteboard with a custom HTML5 Canvas drawing engine, a native Node.js WebSocket server, JWT authentication, and PostgreSQL persistence. Multiple users can draw on a shared canvas in real time. Shapes sync to all connected clients immediately and persist across sessions.
 
-Instead of plugging in heavy, pre-built whiteboard libraries (like Excalidraw or Fabric.js), I wanted to understand the raw mechanics: **How do you synchronize thousands of hand-drawn coordinates across multiple browsers without lag, stuttering, or breaking the canvas?**
-
-Flowboard answers that by pairing a custom HTML5 Canvas drawing engine with native WebSockets, using clean geometry math to handle everything from boundary collisions to shape intersections natively.
+Built without third-party real-time services. The WebSocket server is a plain Node.js process using the `ws` library.
 
 ---
 
-## Why Built From Scratch?
+## Features
 
-When you use a pre-built canvas library, you miss out on solving the most interesting frontend and networking problems. By stripping away the abstractions, I had to figure out how to handle real-world browser quirks, network delays, and concurrent users on a shared screen.
-
-Here is how Flowboard handles those challenges:
-
-### 1. Drawing Backwards Without Breaking the Canvas (The Jitter Bug)
-
-* **The Problem:** When you click and drag to draw a rectangle from right-to-left or bottom-to-top, the width and height math becomes negative. Standard canvas renderers freak out and cause the shape to vibrate wildly on screen.
-* **The Fix:** I wrote a coordinate normalizer using simple max/min math that automatically flips negative dimensions into clean, positive values. You can drag your mouse as fast and chaotically as you want, and the shape stays solid.
-
-### 2. Main-Thread Optimized Drawing via Display-Synchronized Throttling
-
-* **The Problem:** If you redraw an entire screen full of shapes on every single millisecond your mouse moves (`mousemove`), the browser's main thread chokes, causing severe screen stutter.
-* **The Fix:** I hooked the drawing loop directly into the browser's refresh rate using `requestAnimationFrame`. If the mouse fires faster than the screen can refresh, stale frames are instantly canceled. The canvas stays synchronized with the display's native refresh rate, ensuring smooth rendering without blocking the browser's main thread.
-
-### 3. Instant Drawing Without "Ghost" Echoes
-
-* **The Problem:** To make drawing feel instant, your lines appear on your screen immediately while being sent to the server in the background. However, when the server broadcasts that new shape to everyone in the room, it also sends it back to *you*, causing a duplicate "ghost shape" to render over your original line.
-* **The Fix:** Every shape gets a unique ID (UUID). The frontend tracks what you just drew and automatically ignores any incoming WebSocket echoes that match your own IDs.
-
-### 4. Never Waiting on a Slow Database
-
-* **The Problem:** If the WebSocket server waits for a database to confirm it saved a shape before showing it to other users, a momentary database lag freezes the drawing experience for the entire room.
-* **The Fix:** The server decouples real-time broadcasting from storage. The moment a shape arrives, it is blasted out to all connected users instantly, while PostgreSQL saves the data asynchronously in the background.
-
-### 5. Surviving Network Blips and Server Restarts
-
-* **The Problem:** Cloud servers often go to sleep or drop connections. A standard WebSocket just dies, leaving users stuck on a broken screen.
-* **The Fix:** The frontend uses an intelligent auto-reconnect loop that tries to reconnect in stepping intervals (1s, 2s, 4s, up to 30s). On the server side, a background heartbeat checks on users every 30 seconds, cleanly disconnecting ghost connections before they eat up memory.
-
-### 6. Safe Undo (Only Erasing *Your* Mistakes)
-
-* **The Problem:** In a shared canvas, the application stores everyone's drawings in one master list. If you press `Ctrl+Z` and the app simply removes the last shape added to the list, you might accidentally erase a teammate's drawing!
-* **The Fix:** The engine tracks shape ownership locally using a Set of your personal shape IDs. When you hit Undo, the engine walks backward through the shared list, finds the most recent line *you* drew, and safely removes only that one.
-
-### 7. Smart Pencil Throttling (70% Smaller Data Payloads)
-
-* **The Problem:** Freehand drawing captures hundreds of mouse coordinates per second, many of which sit practically on top of each other. Sending all of them floods the network.
-* **The Fix:** A distance-based throttle checks every new mouse position. If it is less than 5 pixels away from the last recorded point, it gets ignored. This shrinks the WebSocket payload size by ~70% without changing how smooth the sketch looks to the human eye.
-
----
-
-## How It Works Under the Hood
-
-```text
-[ Next.js Frontend ] <--- WebSockets (Instant Broadcasts) ---> [ Node.js Server ]
- (HTML5 Canvas + Rough.js)                                      (In-Memory Cache)
-                                                                       |
-                                                              Asynchronous Write
-                                                                       v
-                                                             [ PostgreSQL Database ]
-
-```
-
-* **The Frontend:** Built with **Next.js** and styled with **Tailwind CSS**. It uses raw **HTML5 Canvas 2D** combined with **Rough.js** to give shapes an organic, hand-sketched feel. Coordinates are scaled against the device's pixel ratio so drawings stay crisp on high-resolution displays.
-* **The Real-Time Layer:** A standalone **Node.js WebSocket server**. To keep workspaces secure without leaking credentials in server proxy logs, authentication tokens are passed safely inside the `Sec-WebSocket-Protocol` header instead of the URL. The server also keeps an in-memory cache of active rooms so it doesn't have to hammer the database every time someone draws.
-* **The Database:** Managed with **PostgreSQL** and **Prisma**. At startup, the server validates all environment variables and secrets immediately—crashing safely with a clear warning if anything is missing, rather than failing silently later.
+- Rectangle, circle, diamond, line, arrow, freehand pencil, and text tools
+- Eraser with point-in-shape hit testing
+- Undo and redo, scoped to your own shapes
+- Live remote cursors with per-user color assignment
+- Shapes drawn while offline are queued locally and replayed in order on reconnect
+- Named rooms with shareable invite links
+- Download canvas as PNG
+- Dashboard with canvas thumbnails
 
 ---
 
 ## Tech Stack
 
-* **Frontend:** Next.js (App Router), React, Tailwind CSS, TypeScript
-* **Graphics Engine:** Custom HTML5 Canvas 2D API + Rough.js
-* **Networking:** Native WebSockets (WS/WSS)
-* **Backend:** Node.js, Express
-* **Database & ORM:** PostgreSQL, Prisma
-* **Monorepo Tooling:** Turborepo, pnpm
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript |
+| Rendering | HTML5 Canvas + Rough.js |
+| Styling | Tailwind CSS v4, Radix UI, shadcn/ui |
+| HTTP API | Node.js, Express, Zod, express-rate-limit |
+| WebSocket | Node.js, `ws` library |
+| Database | PostgreSQL, Prisma ORM |
+| Auth | JWT (bcrypt password hashing) |
+| Monorepo | Turborepo, pnpm workspaces |
 
 ---
 
-## Running the Project Locally
+## Architecture
 
-To test the multi-user synchronization on your own machine, you will need Node.js and `pnpm` installed.
+Three separate processes. The WebSocket server handles all real-time traffic; the HTTP server handles auth, room management, and shape loading.
 
-**1. Clone the repository and install dependencies:**
+```
+Browser
+  |
+  |-- REST -------> http-backend   :3001  (Express)
+  |                     |
+  |                     └--> PostgreSQL  (Prisma)
+  |
+  |-- WebSocket --> ws-backend     :8081  (ws)
+                        |
+                        ├--> Broadcast to room peers  (immediate)
+                        └--> PostgreSQL write         (async, after broadcast)
+```
+
+**Draw event flow:**
+1. Shape is created on mouseup, serialized, and passed to `socket.send()`.
+2. The WebSocket server resolves the room ID (LRU cache, then DB), and broadcasts to connected peers.
+3. The database write fires asynchronously after broadcast. A slow write does not delay peers.
+4. Peers render the incoming shape via `requestAnimationFrame`.
+
+**Offline behavior:**
+`shape` and `delete_shape` events are pushed to an in-memory FIFO queue when the socket is closed. Cursor events are dropped. On reconnect, the queue is flushed before new events are sent, and the client fetches the latest persisted shapes to fill any gaps.
+
+---
+
+## Project Structure
+
+```
+flowboard/
+├── apps/
+│   ├── web/               # Next.js frontend
+│   │   ├── app/           # Pages: /, /dashboard, /canvas/[roomId], /signin, /signup
+│   │   ├── components/    # React components
+│   │   └── draw/          # Canvas engine: WhiteboardEngine, renderer, shapeFactory, hitTest, types
+│   ├── http-backend/      # Express REST API (auth, rooms, shapes)
+│   └── ws-backend/        # WebSocket server (real-time sync, heartbeat, LRU cache)
+└── packages/
+    ├── common/            # Zod schemas, generateSlug (shared across all apps)
+    ├── database/          # Prisma schema and generated client
+    ├── backend-common/    # JWT_SECRET loader with fail-fast validation
+    ├── typescript-config/ # Shared tsconfig base
+    └── eslint-config/     # Shared ESLint config
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20.x
+- pnpm 9.x
+- Docker (for local PostgreSQL)
+
+### Installation
 
 ```bash
 git clone https://github.com/adityasrc/flowboard.git
 cd flowboard
 pnpm install
-
 ```
 
-**2. Set up your environment variables:**
-Create a `.env` file in the root directory and add your PostgreSQL database URL and a secret key for JWT sessions:
+### Environment Variables
+
+Root `.env` (used by both backend processes):
 
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/flowboard"
-JWT_SECRET="your-super-secret-key"
+# Docker Compose
+POSTGRES_DB=flowboard
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=yourpassword
 
+# Prisma
+DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/flowboard"
+
+# Both backends
+JWT_SECRET=your-secret-here
 ```
 
-**3. Push the database schema:**
+`apps/web/.env.local`:
 
-```bash
-cd packages/database
-npx prisma generate
-npx prisma db push
-cd ../..
-
+```env
+NEXT_PUBLIC_HTTP_BACKEND=http://localhost:3001
+NEXT_PUBLIC_WS_BACKEND=ws://localhost:8081
 ```
 
-**4. Start the development servers:**
+### Development
 
 ```bash
+# Start PostgreSQL
+docker-compose up -d
+
+# Run migrations
+cd packages/database && pnpm prisma migrate dev && cd ../..
+
+# Start all services
 pnpm dev
-
 ```
 
-Open [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000) in your browser. To see the collaboration in action, open a second tab (or an Incognito window), join the same room, and start sketching!
+This runs the Next.js app on `:3000`, the HTTP server on `:3001`, and the WebSocket server on `:8081` concurrently via Turborepo.
+
+### Production Build
+
+```bash
+pnpm build
+```
+
+Turborepo builds packages in dependency order and caches outputs by content hash.
+
+---
+
+## Engineering Decisions
+
+**JWT via `Sec-WebSocket-Protocol`**
+The browser WebSocket API does not allow custom headers on the handshake. Passing the token in the URL exposes it in server access logs. The `Sec-WebSocket-Protocol` header is the standard workaround and keeps the token out of logs. The server echoes the header back to complete the handshake.
+
+**Fire-and-forget database writes**
+Shapes are broadcast to peers before the database write completes. The tradeoff is that a crash between broadcast and write could lose a shape. In practice the window is a few milliseconds. The alternative — waiting for a database ACK before broadcasting — would add query latency to every draw event for every user in the room.
+
+**LRU cache for room resolution**
+The WebSocket server needs a room's numeric database ID on every shape event. A 500-entry Map-based LRU eliminates repeated DB round-trips after the first event per room. The cache is in-process and resets on restart.
+
+**Offline queue scoped to shape operations only**
+Cursor positions are ephemeral and have no value after the connection drops. Only `shape` and `delete_shape` messages are queued. This keeps the queue small and replay deterministic.
+
+---
+
+## Known Limitations
+
+**Silent disconnect window.** When a physical network drops, browsers may report `readyState === OPEN` for several seconds while the TCP stack times out. Shapes sent during this window are buffered by the OS and discarded when the connection closes. They are not queued or recoverable. Shapes drawn after `onclose` fires are queued and replayed correctly.
+
+**Single WebSocket server instance.** Room state is held in process memory. Running multiple instances would require a pub/sub layer (e.g. Redis) to relay events across them.
+
+**250 shape limit per room.** The shapes endpoint returns the 250 most recent shapes per room. Older shapes are not loaded on join.
+
+---
+
+## Future Improvements
+
+- Redis pub/sub for horizontal WebSocket scaling
+- Canvas panning and zoom (coordinate system is currently fixed to the viewport)
+- Shape selection and repositioning after placement
+- Room access control (any authenticated user can currently join any room by slug)
+
+---
+
+## Screenshots
+
+> _Add screenshots here._
+
+---
+
+## License
+
+MIT

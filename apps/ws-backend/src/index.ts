@@ -115,34 +115,39 @@ wss.on("connection", function connection(ws, request) {
         const user = users.find((x) => x.ws === ws);
         if (!user) return;
 
-        if (user.rooms.includes(roomSlug)) return;
+        if (!user.rooms.includes(roomSlug)) {
+          user.rooms.push(roomSlug);
+        }
 
         try {
-          const room = await client.room.findUnique({
-            where: { slug: roomSlug },
-            select: {
-              id: true,
-              members: {
-                where: { id: Number(userId) },
-                select: { id: true },
+          let cachedRoomId = roomCache.get(roomSlug);
+          if (!cachedRoomId) {
+            const room = await client.room.findUnique({
+              where: { slug: roomSlug },
+              select: {
+                id: true,
+                members: {
+                  where: { id: Number(userId) },
+                  select: { id: true },
+                },
               },
-            },
-          });
-
-          if (!room) {
-            ws.send(JSON.stringify({ type: "error", message: "Room not found." }));
-            return;
-          }
-
-          if (room.members.length === 0) {
-            await client.room.update({
-              where: { id: room.id },
-              data: { members: { connect: { id: Number(userId) } } },
             });
-          }
 
-          user.rooms.push(roomSlug);
-          roomCache.set(roomSlug, room.id);
+            if (!room) {
+              user.rooms = user.rooms.filter((r) => r !== roomSlug);
+              ws.send(JSON.stringify({ type: "error", message: "Room not found." }));
+              return;
+            }
+
+            if (room.members.length === 0) {
+              await client.room.update({
+                where: { id: room.id },
+                data: { members: { connect: { id: Number(userId) } } },
+              });
+            }
+
+            roomCache.set(roomSlug, room.id);
+          }
         } catch (e) {
           console.error("Database error: Failed to verify room membership:", e);
         }
@@ -224,7 +229,9 @@ wss.on("connection", function connection(ws, request) {
                 shapeData: rawMessage,
               },
             })
-            .catch((e: unknown) => console.error("Database error: Failed to create shape record:", e));
+            .catch((e: unknown) => {
+              console.error("Database error: Failed to persist shape:", e);
+            });
         } catch (e) {
           console.error("Database error: Failed to process shape payload:", e);
         }
