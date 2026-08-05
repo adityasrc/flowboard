@@ -13,23 +13,20 @@ interface CanvasProps {
 
 export function RoomCanvas({ roomId }: CanvasProps) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const [loadingText, setLoadingText] = useState("Connecting to server...");
   const router = useRouter();
 
-  // Holds the active WebSocket so the cleanup function always closes the
-  // most recently created socket, even after reconnect cycles.
   const wsRef = useRef<WebSocket | null>(null);
-
-  // Holds the engine instance so we can flush the offline queue on reconnect.
   const engineRef = useRef<WhiteboardEngine | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
+    let isReconnecting = false;
     const MAX_ATTEMPTS = 5;
 
-    // Show a hint after 3s that the cloud server may be cold-starting.
     const coldStartTimer = setTimeout(() => {
       setLoadingText(
         "Waking up the cloud server — this can take up to 50s on first load…",
@@ -37,6 +34,8 @@ export function RoomCanvas({ roomId }: CanvasProps) {
     }, 3000);
 
     function connect() {
+      if (isReconnecting) return;
+
       let token = "";
       try {
         token = localStorage.getItem("token") || "";
@@ -49,9 +48,12 @@ export function RoomCanvas({ roomId }: CanvasProps) {
         return;
       }
 
-      // Pass the JWT as the Sec-WebSocket-Protocol sub-protocol instead of a
-      // URL query param. URL params are recorded verbatim in proxy access logs;
-      // the protocol header is not.
+      if (wsRef.current) {
+        try { wsRef.current.close(); } catch {}
+        wsRef.current = null;
+      }
+
+      isReconnecting = true;
       const ws = new WebSocket(WS_BACKEND, token);
       wsRef.current = ws;
 
@@ -61,32 +63,43 @@ export function RoomCanvas({ roomId }: CanvasProps) {
           return;
         }
 
+        isReconnecting = false;
         clearTimeout(coldStartTimer);
-
         attempts = 0;
-        setSocket(ws);
         setLoadingText("Connecting to server...");
         ws.send(JSON.stringify({ type: "join_room", roomId }));
 
-        engineRef.current?.flushQueue();
+        if (engineRef.current) {
+          // Reconnect: update the existing engine's socket and flush the queue.
+          // Canvas stays mounted, engine stays alive, no data loss.
+          setIsConnected(true);
+          engineRef.current.updateSocket(ws);
+        } else {
+          // First connect: mount Canvas for the first time.
+          setSocket(ws);
+          setIsConnected(true);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
       };
 
       ws.onclose = (event) => {
-        if (cancelled) return;
-        setSocket(null);
+        if (cancelled || wsRef.current !== ws) return;
+        isReconnecting = false;
+        wsRef.current = null;
+        setIsConnected(false);
 
-        // Standard WS auth violation codes (1008 = Policy Violation, 4001/4003 = Custom Auth Fail)
-        // If the token is rejected by backend, do not retry 5 times; logout immediately.
         if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
           try {
             localStorage.removeItem("token");
-          } catch (e) { }
+          } catch (e) {}
           router.push("/signin");
           return;
         }
 
         if (attempts < MAX_ATTEMPTS) {
-          // Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at 30s)
           const delay = Math.min(1000 * Math.pow(2, attempts), 30_000);
           attempts++;
           setLoadingText(
@@ -99,12 +112,30 @@ export function RoomCanvas({ roomId }: CanvasProps) {
       };
     }
 
+    const handleOnline = () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      attempts = 0;
+      setLoadingText("Reconnecting to server...");
+      connect();
+    };
+
+    const handleOffline = () => {
+      setIsConnected(false);
+      setLoadingText("Connection lost. Drawings will sync when reconnected.");
+      try { wsRef.current?.close(); } catch {}
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     connect();
 
     return () => {
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       clearTimeout(coldStartTimer);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       wsRef.current?.close();
     };
   }, [roomId, router]);
@@ -121,12 +152,23 @@ export function RoomCanvas({ roomId }: CanvasProps) {
   }
 
   return (
-    <Canvas
-      roomId={roomId}
-      socket={socket}
-      onEngineReady={(engine) => {
-        engineRef.current = engine;
-      }}
-    />
+    <div className="relative w-screen h-screen overflow-hidden">
+      <Canvas
+        roomId={roomId}
+        socket={socket}
+        onEngineReady={(engine) => {
+          engineRef.current = engine;
+        }}
+      />
+      {!isConnected && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-slate-900/90 text-white text-[12px] font-medium px-4 py-2 rounded-full shadow-lg backdrop-blur-sm pointer-events-none border border-slate-700/50">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <span>{loadingText}</span>
+        </div>
+      )}
+    </div>
   );
 }

@@ -69,7 +69,7 @@ const TIMELINE = [
   {
     n: "01",
     title: "Client Captures & Queues Input",
-    body: "Pointer movements are filtered to remove redundant points before a completed shape is serialized and sent over WebSockets. If the connection is unavailable, events are queued locally and replayed in order once the client reconnects.",
+    body: "Pointer movements are filtered to remove redundant points before a completed shape is serialized and sent over WebSockets. While offline, events are held in a local queue and replayed in order on reconnect.",
   },
   {
     n: "02",
@@ -79,7 +79,7 @@ const TIMELINE = [
   {
     n: "03",
     title: "DB Write is Fire-and-Forget",
-    body: "Updates are broadcast immediately while persistence happens asynchronously in the background. A slow database never delays real-time collaboration, and clients load the latest persisted state when joining a room.",
+    body: "Shape events are broadcast to peers immediately. The database write happens asynchronously so a slow query never stalls the collaboration session. Clients load the latest persisted state when joining a room.",
   },
   {
     n: "04",
