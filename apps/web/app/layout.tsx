@@ -27,7 +27,12 @@ export const metadata: Metadata = {
   description: "A low-latency collaborative whiteboarding workspace powered by native WebSockets, Node.js, PostgreSQL, and Rough.js.",
   keywords: ["whiteboard", "collaboration", "real-time", "websockets", "nextjs", "roughjs", "canvas", "system-design"],
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 
@@ -37,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${patrickHand.variable} font-sans antialiased bg-white text-slate-900`}>
         {children}
       </body>

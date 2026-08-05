@@ -1,0 +1,21 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f6f6f6"/>
+  
+  <!-- Central Fulcrum Line -->
+  <line x1="80" y1="260" x2="720" y2="260" stroke="#a3a3a3" stroke-width="3"/>
+  <polygon points="400,220 440,260 400,300 360,260" fill="#e5e5e5" stroke="#404040" stroke-width="2"/>
+  
+  <!-- Left Weight (Heavy) -->
+  <rect x="160" y="220" width="140" height="40" rx="4" fill="#404040"/>
+  <circle cx="230" cy="180" r="20" fill="#737373"/>
+  
+  <!-- Right Weight (Light but stacked) -->
+  <rect x="520" y="160" width="100" height="100" fill="none" stroke="#404040" stroke-width="2"/>
+  <rect x="540" y="200" width="60" height="60" fill="#a3a3a3"/>
+  
+  <!-- Directional and Balancing Squiggles -->
+  <path d="M 230 140 Q 230 80 300 100 T 400 120" fill="none" stroke="#404040" stroke-width="2"/>
+  <polyline points="385,115 400,120 395,135" fill="none" stroke="#404040" stroke-width="2"/>
+  
+  <path d="M 680 160 Q 720 200 680 240" fill="none" stroke="#a3a3a3" stroke-width="3"/>
+</svg>
