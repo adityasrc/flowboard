@@ -391,7 +391,7 @@ export default function Dashboard() {
                 key={i}
                 className="rounded-xl border border-slate-200/80 bg-white overflow-hidden flex flex-col"
               >
-                <Skeleton className="h-24 w-full bg-slate-100/80" />
+                <Skeleton className="h-28 w-full bg-slate-100/80" />
                 <div className="p-3.5 space-y-2.5">
                   <Skeleton className="h-4 w-3/4 bg-slate-100" />
                   <Skeleton className="h-3 w-1/2 bg-slate-100" />
@@ -431,9 +431,7 @@ export default function Dashboard() {
                 className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 cursor-pointer"
               >
                 <div className="rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full">
-                  <div className="h-24 bg-slate-50/80 border-b border-slate-100 relative flex items-center justify-center overflow-hidden p-3 group-hover:bg-slate-100/60 transition-colors">
-                    <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:12px_12px] opacity-70" />
-
+                  <div className="h-28 border-b border-slate-100 relative flex items-center justify-center overflow-hidden">
                     <CanvasThumbnail slug={room.slug} />
 
                     <button

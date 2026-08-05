@@ -13,7 +13,7 @@ const Section = ({
   children: React.ReactNode;
   className?: string;
 }) => (
-  <section id={id} className={`scroll-mt-24 ${className}`}>
+  <section id={id} className={`scroll-mt-6 ${className}`}>
     <h2 className="text-xl font-semibold tracking-tight text-slate-950 mb-4 pb-2 border-b border-slate-200">
       {title}
     </h2>

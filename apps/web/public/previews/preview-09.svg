@@ -1,0 +1,26 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f6f6f6"/>
+  
+  <!-- Central Focus Node (Diamond) -->
+  <polygon points="400,160 460,200 400,240 340,200" fill="#404040" stroke="#404040" stroke-width="3"/>
+  <rect x="360" y="160" width="80" height="80" fill="none" stroke="#e5e5e5" stroke-width="2"/>
+  
+  <!-- Radial Arrows Converging -->
+  <path d="M 80 80 L 320 180" fill="none" stroke="#404040" stroke-width="2"/>
+  <polyline points="305,175 320,180 310,165" fill="none" stroke="#404040" stroke-width="2"/>
+  
+  <path d="M 720 80 L 480 180" fill="none" stroke="#404040" stroke-width="2"/>
+  <polyline points="495,175 480,180 490,165" fill="none" stroke="#404040" stroke-width="2"/>
+  
+  <path d="M 80 320 L 320 220" fill="none" stroke="#404040" stroke-width="2"/>
+  <polyline points="305,225 320,220 310,235" fill="none" stroke="#404040" stroke-width="2"/>
+  
+  <path d="M 720 320 L 480 220" fill="none" stroke="#404040" stroke-width="2"/>
+  <polyline points="495,225 480,220 490,235" fill="none" stroke="#404040" stroke-width="2"/>
+  
+  <!-- Peripheral Gray Shapes -->
+  <circle cx="100" cy="100" r="30" fill="#e5e5e5"/>
+  <rect x="660" y="60" width="60" height="60" fill="#a3a3a3"/>
+  <rect x="80" y="280" width="60" height="60" fill="#737373"/>
+  <circle cx="700" cy="300" r="30" fill="#e5e5e5"/>
+</svg>

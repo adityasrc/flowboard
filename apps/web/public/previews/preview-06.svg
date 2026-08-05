@@ -1,0 +1,23 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f6f6f6"/>
+  
+  <!-- Massive Background Light Circle -->
+  <circle cx="280" cy="200" r="160" fill="#e5e5e5" stroke="#a3a3a3" stroke-width="1"/>
+  
+  <!-- Foreground Dark Overlap -->
+  <circle cx="380" cy="220" r="90" fill="#404040"/>
+  
+  <!-- Distant Gray Shapes -->
+  <rect x="580" y="80" width="120" height="60" rx="4" fill="#a3a3a3"/>
+  <polygon points="620,180 670,230 620,280 570,230" fill="none" stroke="#404040" stroke-width="2"/>
+  <circle cx="680" cy="300" r="30" fill="#e5e5e5" stroke="#404040" stroke-width="2"/>
+  
+  <!-- Sharp Piercing Line and Arrows -->
+  <line x1="50" y1="350" x2="750" y2="50" stroke="#404040" stroke-width="3"/>
+  <polyline points="730,55 750,50 740,70" fill="none" stroke="#404040" stroke-width="3"/>
+  
+  <line x1="100" y1="200" x2="400" y2="200" stroke="#a3a3a3" stroke-width="1.5"/>
+  
+  <!-- Squiggles near the "gravity pull" -->
+  <path d="M 320 280 Q 340 260 360 280 T 400 270" fill="none" stroke="#e5e5e5" stroke-width="2"/>
+</svg>

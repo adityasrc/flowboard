@@ -1,0 +1,18 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f6f6f6"/>
+  
+  <!-- Heavy Overlapping Rectangles at Bottom -->
+  <rect x="80" y="240" width="280" height="100" rx="4" fill="#e5e5e5" stroke="#404040" stroke-width="2"/>
+  <rect x="180" y="280" width="300" height="80" rx="4" fill="#a3a3a3" stroke="#404040" stroke-width="2"/>
+  <rect x="420" y="220" width="260" height="100" rx="4" fill="#737373"/>
+  
+  <!-- Stacked Mid-Grays and Diamonds -->
+  <polygon points="340,160 400,200 340,240 280,200" fill="none" stroke="#404040" stroke-width="2"/>
+  <circle cx="400" cy="140" r="30" fill="#e5e5e5" stroke="#404040" stroke-width="2"/>
+  <rect x="520" y="100" width="140" height="60" rx="4" fill="none" stroke="#404040" stroke-width="2"/>
+  <rect x="540" y="120" width="140" height="60" rx="4" fill="#404040"/>
+  
+  <!-- Ascent Line -->
+  <line x1="140" y1="360" x2="600" y2="80" stroke="#404040" stroke-width="2"/>
+  <polyline points="590,95 600,80 585,85" fill="none" stroke="#404040" stroke-width="2"/>
+</svg>
