@@ -179,6 +179,9 @@ importers:
 
   packages/backend-common:
     dependencies:
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.6.1
       zod:
         specifier: ^3.22.4
         version: 3.25.76

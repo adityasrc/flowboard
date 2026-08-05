@@ -3,6 +3,7 @@
   "references": [
     { "path": "./apps/http-backend" },
     { "path": "./apps/ws-backend" },
+    { "path": "./packages/backend-common" },
     { "path": "./packages/common" },
     { "path": "./packages/database" }
   ]
