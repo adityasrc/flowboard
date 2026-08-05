@@ -1,4 +1,3 @@
-import "./loadEnv"; // Must be first, loads root .env before any other import
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -31,6 +30,15 @@ app.post("/api/v1/auth/signup", authLimiter, async function (req, res) {
   }
 
   try {
+    const existingUser = await client.user.findUnique({
+      where: { email: parsedData.data.email },
+    });
+
+    if (existingUser) {
+      res.status(409).json({ message: "User already exists with this email" });
+      return;
+    }
+
     const hashedPassword = await bcrypt.hash(parsedData.data.password, 10);
     const user = await client.user.create({
       data: {
@@ -41,7 +49,8 @@ app.post("/api/v1/auth/signup", authLimiter, async function (req, res) {
     });
     res.json({ userId: user.id });
   } catch (e) {
-    res.status(409).json({ message: "User already exists with this email" });
+    console.error("Signup error:", e);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
@@ -85,6 +94,15 @@ app.post("/api/v1/canvas", apiLimiter, middleware, async function (req, res) {
   const slug = generateSlug(parsedData.data.name);
 
   try {
+    const existingRoom = await client.room.findUnique({
+      where: { slug },
+    });
+
+    if (existingRoom) {
+      res.status(409).json({ message: "A room with this name already exists." });
+      return;
+    }
+
     const room = await client.room.create({
       data: {
         slug,
@@ -95,13 +113,9 @@ app.post("/api/v1/canvas", apiLimiter, middleware, async function (req, res) {
       },
     });
     res.json({ roomId: room.id });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Database error: Failed to create room:", e);
-    if (e.code === "P2002") {
-      res.status(409).json({ message: "A room with this name already exists." });
-    } else {
-      res.status(500).json({ message: "Internal server error" });
-    }
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 

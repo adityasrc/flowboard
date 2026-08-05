@@ -1,4 +1,3 @@
-import "./loadEnv"; // Must be first, loads root .env before any other import
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
