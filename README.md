@@ -154,7 +154,7 @@ Turborepo builds packages in dependency order and caches outputs by content hash
 The browser WebSocket API does not allow custom headers on the handshake. Passing the token in the URL exposes it in server access logs. The `Sec-WebSocket-Protocol` header is the standard workaround and keeps the token out of logs. The server echoes the header back to complete the handshake.
 
 **Fire-and-forget database writes**
-Shapes are broadcast to peers before the database write completes. The tradeoff is that a crash between broadcast and write could lose a shape. In practice the window is a few milliseconds. The alternative — waiting for a database ACK before broadcasting — would add query latency to every draw event for every user in the room.
+Shapes are broadcast to peers before the database write completes. The tradeoff is that a crash between broadcast and write could lose a shape. In practice the window is a few milliseconds. Waiting for a database ACK before broadcasting would add query latency to every draw event for every user in the room.
 
 **LRU cache for room resolution**
 The WebSocket server needs a room's numeric database ID on every shape event. A 500-entry Map-based LRU eliminates repeated DB round-trips after the first event per room. The cache is in-process and resets on restart.
@@ -183,12 +183,6 @@ Cursor positions are ephemeral and have no value after the connection drops. Onl
 
 ---
 
-## Screenshots
+## Documentation
 
-> _Add screenshots here._
-
----
-
-## License
-
-MIT
+For a deep dive into the architecture, WebSocket protocol, drawing engine internals, and engineering tradeoffs, visit `/docs` in the web application.
