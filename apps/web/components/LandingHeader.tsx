@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Layers, Menu, X, ArrowRight } from "lucide-react"
-import { useState, useEffect, type MouseEvent } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 
 export function LandingHeader() {
@@ -38,15 +38,6 @@ export function LandingHeader() {
     return () => { document.body.style.overflow = ""; };
   }, [isMobileMenuOpen]);
 
-  const scrollToFeatures = (e: MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const elem = document.getElementById("features");
-    if (elem) {
-      elem.scrollIntoView({ behavior: "smooth" });
-    }
-    setIsMobileMenuOpen(false);
-  };
-
   return (
     <header
       className={`fixed top-0 z-50 w-full transition-all duration-200 ${isScrolled
@@ -67,29 +58,7 @@ export function LandingHeader() {
         </Link>
 
 
-        <nav className="hidden md:flex items-center gap-6">
-          <a
-            href="#features"
-            onClick={scrollToFeatures}
-            className="text-[13px] text-slate-500 hover:text-black transition-colors duration-150"
-          >
-            Architecture
-          </a>
-          <Link
-            href="https://github.com/adityasrc/flowboard"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[13px] text-slate-500 hover:text-black transition-colors duration-150"
-          >
-            GitHub
-          </Link>
-          <Link
-            href="/docs"
-            className="text-[13px] text-slate-500 hover:text-black transition-colors duration-150"
-          >
-            Docs
-          </Link>
-        </nav>
+
 
 
         <div className="hidden md:flex items-center gap-2">
@@ -126,29 +95,6 @@ export function LandingHeader() {
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 top-14 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100">
           <nav className="flex flex-col px-6 py-8 gap-1">
-            <a
-              href="#features"
-              onClick={scrollToFeatures}
-              className="py-3 text-[15px] font-medium text-slate-700 border-b border-slate-100"
-            >
-              Architecture
-            </a>
-            <Link
-              href="/docs"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="py-3 text-[15px] font-medium text-slate-700 border-b border-slate-100"
-            >
-              Docs
-            </Link>
-            <Link
-              href="https://github.com/adityasrc/flowboard"
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="py-3 text-[15px] font-medium text-slate-700 border-b border-slate-100"
-            >
-              GitHub
-            </Link>
 
             <div className="flex flex-col gap-3 mt-6">
               {isLoggedIn ? (

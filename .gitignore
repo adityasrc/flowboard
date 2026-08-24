@@ -36,17 +36,12 @@ dist
 # Ignores custom Prisma client builds across workspaces
 **/generated/prisma
 
-# Note: Only ignore seed.ts if it contains sensitive local data!
-# Otherwise, remove the line below so teammates can seed their DBs.
 seed.ts
 
 # ==========================================
-# Testing & Debug Debugging Logs
+# Test Coverage
 # ==========================================
 coverage
-bug_log.txt
-evaluation_report.txt
-ui_evaluation_report.txt
 
 # ==========================================
 # OS & Misc Metadata

@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import cors from "cors";
 import { middleware } from "./middleware";
-import { JWT_SECRET } from "@repo/backend-common/config";
+import { JWT_SECRET } from "./config";
 import { client } from "@repo/db/client";
 import { CreateUserSchema, SigninSchema, CreateRoomSchema, generateSlug } from "@repo/common";
 import { authLimiter, apiLimiter } from "./rateLimit";
@@ -219,7 +219,6 @@ const deleteRoomHandler = async function (req: express.Request, res: express.Res
 };
 
 app.delete("/api/v1/canvas/:roomId", apiLimiter, middleware, deleteRoomHandler);
-app.delete("/api/v1/room/:roomId", apiLimiter, middleware, deleteRoomHandler);
 
 app.get("/api/v1/canvas/:roomSlug/join", apiLimiter, middleware, async function (req, res) {
   const userId = req.userId;

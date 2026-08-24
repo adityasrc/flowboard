@@ -547,33 +547,7 @@ export class WhiteboardEngine {
 
     if (parsed?.type === "cursor") return;
 
-    // While offline, cancel opposing operations for the same shape ID
-    // so undo+redo cycles don't produce add/delete/add replays on reconnect.
-    if (parsed && (parsed.type === "shape" || parsed.type === "delete_shape")) {
-      const incomingId =
-        parsed.type === "delete_shape"
-          ? parsed.id
-          : (() => { try { return JSON.parse(parsed!.message!).shape?.id; } catch { return undefined; } })();
 
-      if (incomingId) {
-        const oppositeType = parsed.type === "shape" ? "delete_shape" : "shape";
-        let cancelIdx = -1;
-        for (let i = this.offlineQueue.length - 1; i >= 0; i--) {
-          try {
-            const qp = JSON.parse(this.offlineQueue[i]!);
-            if (qp.type !== oppositeType) continue;
-            const qId = oppositeType === "delete_shape"
-              ? qp.id
-              : JSON.parse(qp.message).shape?.id;
-            if (qId === incomingId) { cancelIdx = i; break; }
-          } catch { /* skip malformed entries */ }
-        }
-        if (cancelIdx !== -1) {
-          this.offlineQueue.splice(cancelIdx, 1);
-          return;
-        }
-      }
-    }
 
     this.offlineQueue.push(message);
   }

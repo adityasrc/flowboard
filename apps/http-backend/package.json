@@ -21,7 +21,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@repo/backend-common": "workspace:*",
     "@repo/common": "workspace:*",
     "@repo/db": "workspace:*",
     "bcrypt": "^6.0.0",

@@ -127,7 +127,7 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
       }}
     >
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-        <AlertDialogContent className="sm:max-w-md rounded-xl border-slate-200/80 shadow-md p-6">
+        <AlertDialogContent className="sm:max-w-md rounded-xl border-slate-200/80 p-6">
           <AlertDialogHeader className="gap-1 text-left">
             <AlertDialogTitle className="text-lg font-semibold tracking-tight text-slate-950">
               Leave canvas?

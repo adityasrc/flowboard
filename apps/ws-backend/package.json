@@ -18,7 +18,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@repo/backend-common": "workspace:*",
     "@repo/db": "workspace:*",
     "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.3",

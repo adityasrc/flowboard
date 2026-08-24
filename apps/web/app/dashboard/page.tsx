@@ -314,7 +314,7 @@ export default function Dashboard() {
                 New Canvas
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md rounded-xl border-slate-200/80 shadow-md p-6">
+            <DialogContent className="sm:max-w-md rounded-xl border-slate-200/80 p-6">
               <DialogHeader className="gap-1">
                 <DialogTitle className="text-lg font-semibold tracking-tight text-slate-950">
                   New Canvas
@@ -430,7 +430,7 @@ export default function Dashboard() {
                 href={`/canvas/${room.slug}`}
                 className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 cursor-pointer"
               >
-                <div className="rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full">
+                <div className="rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 overflow-hidden flex flex-col h-full">
                   <div className="h-28 border-b border-slate-100 relative flex items-center justify-center overflow-hidden">
                     <CanvasThumbnail slug={room.slug} />
 
@@ -490,7 +490,7 @@ export default function Dashboard() {
         open={!!roomToDelete}
         onOpenChange={(open) => !open && setRoomToDelete(null)}
       >
-        <AlertDialogContent className="sm:max-w-md rounded-xl border-slate-200/80 shadow-md p-6">
+        <AlertDialogContent className="sm:max-w-md rounded-xl border-slate-200/80 p-6">
           <AlertDialogHeader className="gap-1">
             <AlertDialogTitle className="text-lg font-semibold tracking-tight text-slate-950">
               Delete canvas?

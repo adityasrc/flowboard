@@ -71,7 +71,7 @@ export function DashboardHeader({ user }: UserProps) {
 
             <DropdownMenuContent
               align="end"
-              className="w-56 mt-1.5 border-slate-200/80 shadow-md rounded-xl p-1.5"
+              className="w-56 mt-1.5 border-slate-200/80 rounded-xl p-1.5"
             >
               <DropdownMenuLabel className="font-normal py-1.5 px-2">
                 <div className="flex items-center gap-2.5">

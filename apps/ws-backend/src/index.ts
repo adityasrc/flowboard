@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { JWT_SECRET } from "@repo/backend-common/config";
+import { JWT_SECRET } from "./config";
 import { client } from "@repo/db/client";
 
 const port = process.env.PORT ? Number(process.env.PORT) : 8081;

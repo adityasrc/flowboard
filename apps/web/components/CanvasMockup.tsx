@@ -12,7 +12,7 @@ export function CanvasMockup() {
   }, []);
 
   return (
-    <div className="relative rounded-xl ring-1 ring-black/[0.07] shadow-[0_16px_48px_-8px_rgba(0,0,0,0.13)] bg-white p-[4px]">
+    <div className="relative rounded-xl border border-slate-200 bg-white p-[4px]">
       <div className="rounded-lg overflow-hidden bg-[#0a0a0a]">
 
         <div className="h-9 bg-[#0f0f0f] flex items-center px-3.5">

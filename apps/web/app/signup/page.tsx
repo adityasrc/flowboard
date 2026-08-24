@@ -79,7 +79,7 @@ export default function Signup() {
         </Link>
       </div>
 
-      <Card className="w-full max-w-[380px] rounded-xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+      <Card className="w-full max-w-[380px] rounded-xl border border-slate-200/80 bg-white">
         <CardHeader className="text-center pt-6 pb-0 px-6 flex flex-col gap-1 items-center">
           <CardTitle className="text-xl font-semibold tracking-tight text-slate-950">
             Create your account
