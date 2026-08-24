@@ -45,18 +45,18 @@ Browser
   |
   |-- REST -------> http-backend   :3001  (Express)
   |                     |
-  |                     â””--> PostgreSQL  (Prisma)
+  |                     `--> PostgreSQL  (Prisma)
   |
   |-- WebSocket --> ws-backend     :8081  (ws)
                         |
-                        â”œ--> Broadcast to room peers  (immediate)
-                        â””--> PostgreSQL write         (async, after broadcast)
+                        |--> Broadcast to room peers  (immediate)
+                        `--> PostgreSQL write         (async, after broadcast)
 ```
 
 **Draw event flow:**
 1. Shape is created on mouseup, serialized, and passed to `socket.send()`.
 2. The WebSocket server resolves the room ID (LRU cache, then DB) and broadcasts to connected peers.
-3. The database write fires asynchronously after broadcast â€” a slow write does not delay peers.
+3. The database write fires asynchronously after broadcast - a slow write does not delay peers.
 4. Peers render the incoming shape immediately on receipt.
 
 **Offline behavior:**
@@ -68,18 +68,18 @@ Browser
 
 ```
 flowboard/
-â”œâ”€â”€ apps/
-â”‚   â”œâ”€â”€ web/               # Next.js frontend
-â”‚   â”‚   â”œâ”€â”€ app/           # Pages: /, /dashboard, /canvas/[roomId], /signin, /signup
-â”‚   â”‚   â”œâ”€â”€ components/    # React components
-â”‚   â”‚   â””â”€â”€ draw/          # Canvas engine: WhiteboardEngine, renderer, shapeFactory, hitTest, types
-â”‚   â”œâ”€â”€ http-backend/      # Express REST API (auth, rooms, shapes)
-â”‚   â””â”€â”€ ws-backend/        # WebSocket server (real-time sync, heartbeat, LRU cache)
-â””â”€â”€ packages/
-    â”œâ”€â”€ common/            # Zod schemas, generateSlug (shared across all apps)
-    â”œâ”€â”€ database/          # Prisma schema and generated client
-    â”œâ”€â”€ typescript-config/ # Shared tsconfig base
-    â””â”€â”€ eslint-config/     # Shared ESLint config
+|-- apps/
+|   |-- web/               # Next.js frontend
+|   |   |-- app/           # Pages: /, /dashboard, /canvas/[roomId], /signin, /signup
+|   |   |-- components/    # React components
+|   |   `-- draw/          # Canvas engine: WhiteboardEngine, renderer, shapeFactory, hitTest, types
+|   |-- http-backend/      # Express REST API (auth, rooms, shapes)
+|   `-- ws-backend/        # WebSocket server (real-time sync, heartbeat, LRU cache)
+`-- packages/
+  |-- common/            # Zod schemas, generateSlug (shared across all apps)
+  |-- database/          # Prisma schema and generated client
+  |-- typescript-config/ # Shared tsconfig base
+  `-- eslint-config/     # Shared ESLint config
 ```
 
 ---
@@ -150,7 +150,7 @@ Turborepo builds packages in dependency order and caches outputs by content hash
 ## Engineering Decisions
 
 **JWT via `Sec-WebSocket-Protocol`**
-The browser WebSocket API does not support custom headers on the initial handshake. Passing the token in the URL exposes it in server access logs. The `Sec-WebSocket-Protocol` header is the standard workaround â€” it's available at handshake time and keeps the token out of logs. The server echoes it back to complete the upgrade.
+The browser WebSocket API does not support custom headers on the initial handshake. Passing the token in the URL exposes it in server access logs. The `Sec-WebSocket-Protocol` header is the standard workaround - it's available at handshake time and keeps the token out of logs. The server echoes it back to complete the upgrade.
 
 **Fire-and-forget database writes**
 Shapes are broadcast to peers before the database write completes. The tradeoff is that a crash in the narrow window between broadcast and write could lose a shape. In practice that window is a few milliseconds. Waiting for a DB acknowledgement before broadcasting would add query latency to every draw event for every connected user.
@@ -159,7 +159,7 @@ Shapes are broadcast to peers before the database write completes. The tradeoff 
 The WebSocket server needs a room's numeric database ID on every shape event. A 500-entry Map-based LRU eliminates repeated DB round-trips after the first lookup per room. The cache is in-process and resets on restart, so the first event after a restart pays the DB cost once.
 
 **Offline queue scoped to shape events only**
-Cursor positions are ephemeral â€” they have no meaning after the connection drops. Only `shape` and `delete_shape` messages are queued. This keeps the queue small and replay order deterministic.
+Cursor positions are ephemeral - they have no meaning after the connection drops. Only `shape` and `delete_shape` messages are queued. This keeps the queue small and replay order deterministic.
 
 ---
 
