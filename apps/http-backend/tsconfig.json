@@ -5,7 +5,7 @@
         "outDir": "./dist",
         "types": ["node"]
     },
-    "include" : ["src/**/*"], //for declaration merging file
+    "include" : ["src/**/*"],
     "references": [
     { "path": "../../packages/common" },
     { "path": "../../packages/database" }

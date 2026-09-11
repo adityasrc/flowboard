@@ -24,7 +24,7 @@ model Room {
   createdAt DateTime @default(now())
   adminId   Int
   members   User[] @relation("RoomMembers")
-  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Restrict)
   shapes    Shape[]
 
   @@index([adminId])
@@ -36,7 +36,7 @@ model Shape {
   userId    Int
   shapeId   String
   shapeType String
-  shapeData   String   // Stores serialized graphical canvas elements (e.g., JSON string of { type: "Rect", x: 1, y: 1, w: 10, h: 10 })
+  shapeData   String   // Serialized shape JSON
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -44,5 +44,5 @@ model Shape {
 
   @@index([roomId])
   @@index([userId])
-  @@index([roomId, shapeId])
+  @@unique([roomId, shapeId])
 }

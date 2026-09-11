@@ -4,13 +4,8 @@ import { JWT_SECRET } from "./config";
 import { client } from "@repo/db/client";
 
 const port = process.env.PORT ? Number(process.env.PORT) : 8081;
-
-// Clients that don't respond to a ping before the next cycle are considered dead
-// and terminated, preventing silent ghost connections from accumulating.
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
-// The browser sends the JWT as the first WebSocket sub-protocol value.
-// We echo it back so the handshake succeeds.
 const wss = new WebSocketServer({
   port,
   handleProtocols: (protocols) => {
@@ -23,6 +18,7 @@ interface User {
   ws: WebSocket;
   rooms: string[];
   userId: string;
+  name: string;
   isAlive: boolean;
 }
 
@@ -54,14 +50,49 @@ class LRUCache<K, V> {
   }
 }
 
-// Caches roomSlug -> roomId to avoid a DB round-trip on every shape event.
+// Cache roomSlug -> roomId to avoid DB queries on each shape
 const roomCache = new LRUCache<string, number>(500);
 
-function checkUser(token: string): { userId: string } | null {
+async function resolveRoomId(roomSlug: string): Promise<number | null> {
+  const cached = roomCache.get(roomSlug);
+  if (cached) return cached;
+
+  const room = await client.room.findUnique({
+    where: { slug: roomSlug },
+    select: { id: true },
+  });
+
+  if (!room) return null;
+
+  roomCache.set(roomSlug, room.id);
+  return room.id;
+}
+
+function broadcastToRoom(
+  roomSlug: string,
+  senderWs: WebSocket,
+  payload: object,
+) {
+  const message = JSON.stringify(payload);
+  users.forEach((u) => {
+    if (
+      u.ws !== senderWs &&
+      u.rooms.includes(roomSlug) &&
+      u.ws.readyState === WebSocket.OPEN
+    ) {
+      u.ws.send(message);
+    }
+  });
+}
+
+function checkUser(token: string): { userId: string; name: string } | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     if (!decoded?.id) return null;
-    return { userId: String(decoded.id) };
+    return {
+      userId: String(decoded.id),
+      name: String(decoded.name || "Collaborator"),
+    };
   } catch {
     return null;
   }
@@ -69,18 +100,20 @@ function checkUser(token: string): { userId: string } | null {
 
 wss.on("connection", function connection(ws, request) {
   const headerValue = request.headers["sec-websocket-protocol"];
-  const rawProtocol = Array.isArray(headerValue) ? headerValue[0] : headerValue || "";
+  const rawProtocol = Array.isArray(headerValue)
+    ? headerValue[0]
+    : headerValue || "";
   const token = rawProtocol.split(",")[0]?.trim() || "";
 
   const auth = checkUser(token);
   if (!auth) {
-    ws.close();
+    ws.close(1008, "Unauthorized");
     return;
   }
 
-  const { userId } = auth;
+  const { userId, name } = auth;
 
-  users.push({ userId, rooms: [], ws, isAlive: true });
+  users.push({ userId, name, rooms: [], ws, isAlive: true });
 
   ws.on("pong", () => {
     const user = users.find((u) => u.ws === ws);
@@ -94,10 +127,10 @@ wss.on("connection", function connection(ws, request) {
     const user = users[index]!;
 
     user.rooms.forEach((roomSlug) => {
-      users.forEach((u) => {
-        if (u.ws !== ws && u.rooms.includes(roomSlug) && u.ws.readyState === WebSocket.OPEN) {
-          u.ws.send(JSON.stringify({ type: "cursor_leave", userId: user.userId, roomId: roomSlug }));
-        }
+      broadcastToRoom(roomSlug, ws, {
+        type: "cursor_leave",
+        userId: user.userId,
+        roomId: roomSlug,
       });
     });
 
@@ -106,26 +139,29 @@ wss.on("connection", function connection(ws, request) {
 
   ws.on("message", async function message(data) {
     try {
+      const user = users.find((x) => x.ws === ws);
+      if (!user) return;
+
       const parsedData = JSON.parse(data.toString());
 
-      if (parsedData.type === "join_room") {
-        const roomSlug = parsedData.roomId;
-        if (!roomSlug || typeof roomSlug !== "string") return;
+      switch (parsedData.type) {
+        case "join_room": {
+          const roomSlug = parsedData.roomId;
+          if (!roomSlug || typeof roomSlug !== "string") break;
 
-        const user = users.find((x) => x.ws === ws);
-        if (!user) return;
+          try {
+            const roomId = await resolveRoomId(roomSlug);
+            if (!roomId) {
+              ws.send(
+                JSON.stringify({ type: "error", message: "Room not found." }),
+              );
+              break;
+            }
 
-        if (!user.rooms.includes(roomSlug)) {
-          user.rooms.push(roomSlug);
-        }
-
-        try {
-          let cachedRoomId = roomCache.get(roomSlug);
-          if (!cachedRoomId) {
-            const room = await client.room.findUnique({
-              where: { slug: roomSlug },
+            // Verify connecting user is a room member
+            const membership = await client.room.findUnique({
+              where: { id: roomId },
               select: {
-                id: true,
                 members: {
                   where: { id: Number(userId) },
                   select: { id: true },
@@ -133,141 +169,161 @@ wss.on("connection", function connection(ws, request) {
               },
             });
 
-            if (!room) {
-              user.rooms = user.rooms.filter((r) => r !== roomSlug);
-              ws.send(JSON.stringify({ type: "error", message: "Room not found." }));
-              return;
+            if (!membership || membership.members.length === 0) {
+              ws.send(
+                JSON.stringify({
+                  type: "error",
+                  message: "Not a member of this room.",
+                }),
+              );
+              break;
             }
 
-            if (room.members.length === 0) {
-              await client.room.update({
-                where: { id: room.id },
-                data: { members: { connect: { id: Number(userId) } } },
-              });
+            if (!user.rooms.includes(roomSlug)) {
+              user.rooms.push(roomSlug);
             }
-
-            roomCache.set(roomSlug, room.id);
+          } catch (e) {
+            console.error("Database error: Failed to verify room membership:", e);
           }
-        } catch (e) {
-          console.error("Database error: Failed to verify room membership:", e);
+          break;
         }
 
-        return;
-      }
+        case "leave_room": {
+          const roomSlug = parsedData.roomId;
+          if (!roomSlug || typeof roomSlug !== "string") break;
 
-      if (parsedData.type === "leave_room") {
-        const roomSlug = parsedData.roomId;
-        if (!roomSlug || typeof roomSlug !== "string") return;
+          user.rooms = user.rooms.filter((r) => r !== roomSlug);
 
-        const user = users.find((x) => x.ws === ws);
-        if (!user) return;
-
-        user.rooms = user.rooms.filter((r) => r !== roomSlug);
-
-        users.forEach((u) => {
-          if (u.ws !== ws && u.rooms.includes(roomSlug) && u.ws.readyState === WebSocket.OPEN) {
-            u.ws.send(JSON.stringify({ type: "cursor_leave", userId: user.userId, roomId: roomSlug }));
-          }
-        });
-
-        return;
-      }
-
-      if (parsedData.type === "cursor") {
-        const roomSlug = parsedData.roomId;
-        const x = parsedData.x;
-        const y = parsedData.y;
-
-        if (!roomSlug || typeof roomSlug !== "string" || typeof x !== "number" || typeof y !== "number") return;
-
-        users.forEach((u) => {
-          if (u.ws !== ws && u.rooms.includes(roomSlug) && u.ws.readyState === WebSocket.OPEN) {
-            u.ws.send(JSON.stringify({ type: "cursor", userId, x, y, roomId: roomSlug }));
-          }
-        });
-
-        return;
-      }
-
-      if (parsedData.type === "shape") {
-        const roomSlug = parsedData.roomId;
-        const rawMessage: string = parsedData.message;
-        if (!roomSlug || typeof roomSlug !== "string" || !rawMessage) return;
-
-        let shape: { id: string; type: string; [key: string]: unknown };
-        try {
-          shape = JSON.parse(rawMessage).shape;
-          if (!shape || !shape.id || !shape.type) return;
-        } catch {
-          console.error("Validation error: Malformed shape payload");
-          return;
-        }
-
-        try {
-          let roomId = roomCache.get(roomSlug);
-
-          if (!roomId) {
-            const room = await client.room.findUnique({ where: { slug: roomSlug } });
-            if (!room) return;
-            roomId = room.id;
-            roomCache.set(roomSlug, room.id);
-          }
-
-          users.forEach((u) => {
-            if (u.ws !== ws && u.rooms.includes(roomSlug) && u.ws.readyState === WebSocket.OPEN) {
-              u.ws.send(JSON.stringify({ type: "shape", message: rawMessage, roomId: roomSlug }));
-            }
+          broadcastToRoom(roomSlug, ws, {
+            type: "cursor_leave",
+            userId: user.userId,
+            roomId: roomSlug,
           });
+          break;
+        }
 
-          client.shape
-            .create({
-              data: {
-                roomId,
-                userId: Number(userId),
-                shapeId: shape.id,
-                shapeType: shape.type,
-                shapeData: rawMessage,
-              },
-            })
-            .catch((e: unknown) => {
-              console.error("Database error: Failed to persist shape:", e);
+        case "cursor": {
+          const roomSlug = parsedData.roomId;
+          const x = parsedData.x;
+          const y = parsedData.y;
+
+          if (
+            !roomSlug ||
+            typeof roomSlug !== "string" ||
+            typeof x !== "number" ||
+            typeof y !== "number"
+          ) {
+            break;
+          }
+          if (!user.rooms.includes(roomSlug)) break;
+
+          broadcastToRoom(roomSlug, ws, {
+            type: "cursor",
+            userId,
+            name,
+            x,
+            y,
+            roomId: roomSlug,
+          });
+          break;
+        }
+
+        case "cursor_leave": {
+          const roomSlug = parsedData.roomId;
+          if (!roomSlug || typeof roomSlug !== "string") break;
+          if (!user.rooms.includes(roomSlug)) break;
+
+          broadcastToRoom(roomSlug, ws, {
+            type: "cursor_leave",
+            userId,
+            roomId: roomSlug,
+          });
+          break;
+        }
+
+        case "shape": {
+          const roomSlug = parsedData.roomId;
+          const rawMessage: string = parsedData.message;
+          if (!roomSlug || typeof roomSlug !== "string" || !rawMessage) break;
+          if (!user.rooms.includes(roomSlug)) break;
+
+          let shape: { id: string; type: string; [key: string]: unknown };
+          try {
+            shape = JSON.parse(rawMessage).shape;
+            if (!shape || !shape.id || !shape.type) break;
+          } catch {
+            console.error("Validation error: Malformed shape payload");
+            break;
+          }
+
+          try {
+            const roomId = await resolveRoomId(roomSlug);
+            if (!roomId) break;
+
+            broadcastToRoom(roomSlug, ws, {
+              type: "shape",
+              message: rawMessage,
+              roomId: roomSlug,
             });
-        } catch (e) {
-          console.error("Database error: Failed to process shape payload:", e);
-        }
 
-        return;
-      }
-
-      if (parsedData.type === "delete_shape") {
-        const roomSlug = parsedData.roomId;
-        const shapeId = parsedData.id;
-        if (!roomSlug || typeof roomSlug !== "string" || !shapeId) return;
-
-        try {
-          let roomId = roomCache.get(roomSlug);
-
-          if (!roomId) {
-            const room = await client.room.findUnique({ where: { slug: roomSlug } });
-            if (!room) return;
-            roomId = room.id;
-            roomCache.set(roomSlug, room.id);
+            client.shape
+              .create({
+                data: {
+                  roomId,
+                  userId: Number(userId),
+                  shapeId: shape.id,
+                  shapeType: shape.type,
+                  shapeData: rawMessage,
+                },
+              })
+              .catch((e: unknown) => {
+                console.error("Database error: Failed to persist shape:", e);
+              });
+          } catch (e) {
+            console.error("Database error: Failed to process shape payload:", e);
           }
-
-          users.forEach((u) => {
-            if (u.ws !== ws && u.rooms.includes(roomSlug) && u.ws.readyState === WebSocket.OPEN) {
-              u.ws.send(JSON.stringify({ type: "delete_shape", id: shapeId, roomId: roomSlug }));
-            }
-          });
-
-          client.shape
-            .deleteMany({
-              where: { roomId, shapeId: String(shapeId) },
-            })
-            .catch((e: unknown) => console.error("Database error: Failed to delete shape record:", e));
-        } catch (e) {
-          console.error("Database error: Failed to process delete payload:", e);
+          break;
         }
+
+        case "delete_shape": {
+          const roomSlug = parsedData.roomId;
+          const shapeId = parsedData.id;
+          if (!roomSlug || typeof roomSlug !== "string" || !shapeId) break;
+          if (!user.rooms.includes(roomSlug)) break;
+
+          try {
+            const roomId = await resolveRoomId(roomSlug);
+            if (!roomId) break;
+
+            broadcastToRoom(roomSlug, ws, {
+              type: "delete_shape",
+              id: shapeId,
+              roomId: roomSlug,
+            });
+
+            client.shape
+              .delete({
+                where: {
+                  roomId_shapeId: {
+                    roomId,
+                    shapeId: String(shapeId),
+                  },
+                },
+              })
+              .catch((e: unknown) =>
+                console.error(
+                  "Database error: Failed to delete shape record:",
+                  e,
+                ),
+              );
+          } catch (e) {
+            console.error("Database error: Failed to process delete payload:", e);
+          }
+          break;
+        }
+
+        default:
+          break;
       }
     } catch (e) {
       console.error("Parse error: Failed to parse WebSocket message:", e);

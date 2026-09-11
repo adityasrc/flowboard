@@ -3,12 +3,13 @@ import { JWT_SECRET } from "./config";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
 export function middleware(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers["authorization"] ?? "";
+  const authHeader = req.headers["authorization"];
 
-  // Accepts both "Bearer <token>" and a raw token string
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.split(" ")[1]
-    : authHeader;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Token missing" });
+  }
+
+  const token = authHeader.split(" ")[1]?.trim();
 
   if (!token) {
     return res.status(401).json({ message: "Token missing" });
@@ -17,13 +18,13 @@ export function middleware(req: Request, res: Response, next: NextFunction) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
-    if (!decoded?.id) {
+    if (!decoded?.id || isNaN(Number(decoded.id))) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    req.userId = String(decoded.id);
+    req.userId = Number(decoded.id);
     next();
   } catch (e) {
-    return res.status(403).json({ message: "Invalid or expired token" });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 }

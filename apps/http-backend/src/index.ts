@@ -2,20 +2,39 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import cors from "cors";
+import helmet from "helmet";
 import { middleware } from "./middleware";
 import { JWT_SECRET } from "./config";
 import { client } from "@repo/db/client";
-import { CreateUserSchema, SigninSchema, CreateRoomSchema, generateSlug } from "@repo/common";
+import {
+  CreateUserSchema,
+  SigninSchema,
+  CreateRoomSchema,
+  generateSlug,
+} from "@repo/common";
 import { authLimiter, apiLimiter } from "./rateLimit";
 
 const app = express();
 const port = process.env.HTTP_PORT || 3001;
 
-app.use(cors());
-app.use(express.json());
+// Trust reverse proxy (for real client IP in rate limiters)
+app.set("trust proxy", 1);
 
-app.get("/api/v1/health", function (req, res) {
-  res.status(200).json({
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  }),
+);
+app.use(express.json({ limit: "1mb" }));
+
+// Dummy hash for constant-time comparison when user doesn't exist
+const DUMMY_HASH =
+  "$2b$10$bIjz5K9jgwV7voJn8DQ9o.g5AAn99ZGuZzH.suG3dxNPnFuLVD50y";
+
+app.get(["/health", "/api/v1/health"], function (req, res) {
+  return res.status(200).json({
+    status: "ok",
     message: "Server is running fine",
     timeStamp: new Date().toISOString(),
   });
@@ -25,8 +44,8 @@ app.post("/api/v1/auth/signup", authLimiter, async function (req, res) {
   const parsedData = CreateUserSchema.safeParse(req.body);
 
   if (!parsedData.success) {
-    res.status(400).json({ message: "Invalid inputs" });
-    return;
+    const message = parsedData.error.issues[0]?.message || "Invalid inputs";
+    return res.status(400).json({ message });
   }
 
   try {
@@ -35,22 +54,32 @@ app.post("/api/v1/auth/signup", authLimiter, async function (req, res) {
     });
 
     if (existingUser) {
-      res.status(409).json({ message: "User already exists with this email" });
-      return;
+      return res
+        .status(409)
+        .json({ message: "User already exists with this email" });
     }
 
-    const hashedPassword = await bcrypt.hash(parsedData.data.password, 10);
-    const user = await client.user.create({
-      data: {
-        name: parsedData.data.name,
-        email: parsedData.data.email,
-        password: hashedPassword,
-      },
-    });
-    res.json({ userId: user.id });
+    try {
+      const hashedPassword = await bcrypt.hash(parsedData.data.password, 10);
+      const user = await client.user.create({
+        data: {
+          name: parsedData.data.name,
+          email: parsedData.data.email,
+          password: hashedPassword,
+        },
+      });
+      return res.json({ userId: user.id });
+    } catch (createErr: unknown) {
+      if ((createErr as { code?: string })?.code === "P2002") {
+        return res
+          .status(409)
+          .json({ message: "User already exists with this email" });
+      }
+      throw createErr;
+    }
   } catch (e) {
     console.error("Signup error:", e);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
@@ -60,37 +89,42 @@ app.post("/api/v1/auth/signin", authLimiter, async function (req, res) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
-  const user = await client.user.findUnique({
-    where: { email: parsedData.data.email },
-  });
+  try {
+    const user = await client.user.findUnique({
+      where: { email: parsedData.data.email },
+    });
 
-  if (!user) {
-    return res.status(403).json({ message: "Incorrect credentials" });
+    // Constant-time check to prevent user enumeration
+    const hashToCompare = user?.password || DUMMY_HASH;
+    const passwordMatch = await bcrypt.compare(
+      parsedData.data.password,
+      hashToCompare,
+    );
+
+    if (!user || !passwordMatch) {
+      return res.status(403).json({ message: "Incorrect credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    return res.json({ token });
+  } catch (e) {
+    console.error("Signin error:", e);
+    return res.status(500).json({ message: "Internal server error" });
   }
-
-  const passwordMatch = await bcrypt.compare(parsedData.data.password, user.password);
-
-  if (!passwordMatch) {
-    return res.status(403).json({ message: "Incorrect credentials" });
-  }
-
-  const token = jwt.sign(
-    { id: user.id, name: user.name, email: user.email },
-    JWT_SECRET,
-    { expiresIn: "7d" },
-  );
-
-  return res.json({ token });
 });
 
-app.post("/api/v1/canvas", apiLimiter, middleware, async function (req, res) {
+app.post("/api/v1/canvases", apiLimiter, middleware, async function (req, res) {
   const parsedData = CreateRoomSchema.safeParse(req.body);
   if (!parsedData.success) {
-    res.status(400).json({ message: "Invalid input" });
-    return;
+    return res.status(400).json({ message: "Invalid input" });
   }
 
-  const userId = req.userId;
+  const userId = req.userId!;
   const slug = generateSlug(parsedData.data.name);
 
   try {
@@ -99,101 +133,122 @@ app.post("/api/v1/canvas", apiLimiter, middleware, async function (req, res) {
     });
 
     if (existingRoom) {
-      res.status(409).json({ message: "A room with this name already exists." });
-      return;
+      return res
+        .status(409)
+        .json({ message: "A room with this name already exists." });
     }
 
-    const room = await client.room.create({
-      data: {
-        slug,
-        adminId: Number(userId),
-        members: {
-          connect: { id: Number(userId) },
+    try {
+      const room = await client.room.create({
+        data: {
+          slug,
+          adminId: userId,
+          members: {
+            connect: { id: userId },
+          },
         },
-      },
-    });
-    res.json({ roomId: room.id });
+      });
+      return res.json({ roomId: room.id });
+    } catch (createErr: unknown) {
+      if ((createErr as { code?: string })?.code === "P2002") {
+        return res
+          .status(409)
+          .json({ message: "A room with this name already exists." });
+      }
+      throw createErr;
+    }
   } catch (e) {
     console.error("Database error: Failed to create room:", e);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
 app.get("/api/v1/canvases", apiLimiter, middleware, async function (req, res) {
-  const userId = req.userId;
+  const userId = req.userId!;
 
   try {
     const rooms = await client.room.findMany({
       where: {
         members: {
-          some: { id: Number(userId) },
+          some: { id: userId },
         },
       },
       select: {
         id: true,
         slug: true,
+        adminId: true,
       },
     });
 
-    res.json({ rooms });
+    const formattedRooms = rooms.map((room) => ({
+      id: room.id,
+      slug: room.slug,
+      isOwner: room.adminId === userId,
+    }));
+
+    return res.json({ rooms: formattedRooms });
   } catch (e) {
     console.error("Database error: Failed to fetch rooms for user:", e);
-    res.status(500).json({ message: "Error fetching rooms" });
+    return res.status(500).json({ message: "Error fetching rooms" });
   }
 });
 
-app.get("/api/v1/shapes/:roomSlug", apiLimiter, middleware, async function (req, res) {
-  try {
-    const roomSlug = req.params.roomSlug;
-    const userId = Number(req.userId);
+app.get(
+  "/api/v1/shapes/:roomSlug",
+  apiLimiter,
+  middleware,
+  async function (req, res) {
+    try {
+      const roomSlug = req.params.roomSlug;
+      const userId = req.userId!;
 
-    const roomData = await client.room.findUnique({
-      where: { slug: roomSlug },
-      select: {
-        id: true,
-        members: {
-          where: { id: userId },
-          select: { id: true },
-        },
-      },
-    });
-
-    if (!roomData) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-
-    // Auto-join authenticated users the first time they access a room
-    if (roomData.members.length === 0) {
-      await client.room.update({
-        where: { id: roomData.id },
-        data: {
-          members: { connect: { id: userId } },
+      const roomData = await client.room.findUnique({
+        where: { slug: roomSlug },
+        select: {
+          id: true,
+          members: {
+            where: { id: userId },
+            select: { id: true },
+          },
         },
       });
+
+      if (!roomData) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      if (roomData.members.length === 0) {
+        return res.status(403).json({ message: "Join this room first" });
+      }
+
+      const shapes = await client.shape.findMany({
+        where: { roomId: roomData.id },
+        orderBy: { id: "desc" },
+        take: 250,
+      });
+
+      return res.json({ shapes: shapes.reverse() });
+    } catch (e) {
+      console.error("Database error: Failed to fetch shapes for room:", e);
+      return res.status(500).json({
+        message: "Internal server error while fetching shapes",
+        shapes: [],
+      });
     }
+  },
+);
 
-    const shapes = await client.shape.findMany({
-      where: { roomId: roomData.id },
-      orderBy: { id: "desc" },
-      take: 250,
-    });
-
-    res.json({ shapes: shapes.reverse() });
-  } catch (e) {
-    console.error("Database error: Failed to fetch shapes for room:", e);
-    res.status(500).json({ message: "Internal server error while fetching shapes", shapes: [] });
-  }
-});
-
-const deleteRoomHandler = async function (req: express.Request, res: express.Response) {
-  const userId = Number(req.userId);
-  const roomIdParam = req.params.roomId;
-  const numericId = Number(roomIdParam);
-  const isNumeric = !isNaN(numericId) && numericId > 0;
+// Room owner deletes canvas; members only leave canvas
+const deleteCanvasHandler = async function (
+  req: express.Request,
+  res: express.Response,
+) {
+  const userId = req.userId!;
+  const canvasSlug = req.params.canvasSlug;
 
   try {
-    const room = await client.room.findFirst({
-      where: isNumeric ? { id: numericId } : { slug: roomIdParam },
+    const room = await client.room.findUnique({
+      where: { slug: canvasSlug },
     });
 
     if (!room) {
@@ -213,36 +268,73 @@ const deleteRoomHandler = async function (req: express.Request, res: express.Res
     });
     return res.json({ message: "Canvas removed from your list" });
   } catch (e) {
-    console.error("Database error: Failed to delete canvas:", e);
-    res.status(500).json({ message: "Internal server error while deleting canvas" });
+    console.error("Database error: Failed to delete room:", e);
+    return res
+      .status(500)
+      .json({ message: "Internal server error while deleting room" });
   }
 };
 
-app.delete("/api/v1/canvas/:roomId", apiLimiter, middleware, deleteRoomHandler);
+app.delete(
+  "/api/v1/canvases/:canvasSlug",
+  apiLimiter,
+  middleware,
+  deleteCanvasHandler,
+);
 
-app.get("/api/v1/canvas/:roomSlug/join", apiLimiter, middleware, async function (req, res) {
-  const userId = req.userId;
-  const roomSlug = req.params.roomSlug;
+app.post(
+  "/api/v1/canvases/:canvasSlug/members",
+  apiLimiter,
+  middleware,
+  async function (req, res) {
+    const userId = req.userId!;
+    const canvasSlug = req.params.canvasSlug;
 
-  try {
-    const room = await client.room.findUnique({ where: { slug: roomSlug } });
+    try {
+      const room = await client.room.findUnique({
+        where: { slug: canvasSlug },
+      });
 
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
+      if (!room) {
+        return res.status(404).json({ message: "Canvas not found" });
+      }
+
+      await client.room.update({
+        where: { id: room.id },
+        data: {
+          members: { connect: { id: userId } },
+        },
+      });
+      return res.json({ message: "Joined successfully", canvasId: room.id });
+    } catch (e) {
+      console.error("Database error: Failed to add user to canvas:", e);
+      return res
+        .status(500)
+        .json({ message: "Internal server error while joining room" });
     }
+  },
+);
 
-    await client.room.update({
-      where: { slug: roomSlug },
-      data: {
-        members: { connect: { id: Number(userId) } },
-      },
-    });
-    res.json({ message: "Joined successfully", roomId: room.id });
-  } catch (e) {
-    console.error("Database error: Failed to add user to room:", e);
-    res.status(500).json({ message: "Internal server error while joining room" });
-  }
+// 404 handler
+app.use((req, res) => {
+  return res.status(404).json({ message: "Route not found" });
 });
+
+// Error handler
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    console.error("Unhandled server error:", err);
+    const status = typeof err?.status === "number" ? err.status : 500;
+    const message =
+      status === 413 ? "Payload too large" : "Internal server error";
+    return res.status(status).json({ message });
+  },
+);
 
 app.listen(port, () => {
   console.log(`HTTP Server is running on port ${port}`);

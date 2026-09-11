@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const CreateUserSchema = z.object({
-    name: z.string().trim().min(4).max(24),
-    email: z.string().trim().toLowerCase().email(),
-    password: z.string().min(4).max(72),
+    name: z.string().trim().min(4, "Name must be at least 4 characters").max(24, "Name cannot exceed 24 characters"),
+    email: z.string().trim().toLowerCase().email("Invalid email address"),
+    password: z.string().min(4, "Password must be at least 4 characters").max(72, "Password cannot exceed 72 characters"),
 });
 
 export const SigninSchema = z.object({
