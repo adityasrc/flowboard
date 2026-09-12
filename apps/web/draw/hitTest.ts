@@ -1,5 +1,6 @@
 import { Shape } from "./types";
 import { TEXT_FONT_SIZE } from "./renderer";
+import { ARROW_HEAD_LENGTH } from "./geometry";
 
 export function isPointInShape(
   x: number,
@@ -52,10 +53,8 @@ export function isPointInShape(
   }
 
   if (shape.type === "Circle") {
-    const distance = Math.sqrt(
-      Math.pow(x - shape.centerX, 2) + Math.pow(y - shape.centerY, 2),
-    );
-    return Math.abs(shape.radius) >= distance;
+    const distance = Math.hypot(x - shape.centerX, y - shape.centerY);
+    return shape.radius >= distance;
   }
 
   if (shape.type === "Pencil") {
@@ -64,11 +63,9 @@ export function isPointInShape(
       const px = point[0];
       const py = point[1];
 
-      const base = x - px;
-      const height = y - py;
+      const distance = Math.hypot(x - px, y - py);
 
-      const distance = Math.sqrt(base * base + height * height);
-
+      // Exceeds pencil sample distance to prevent hit-test gaps
       if (distance <= tolerance * 3) {
         return true;
       }
@@ -99,20 +96,16 @@ export function isPointInShape(
       yy = shape.startY + param * D;
     }
 
-    const dx = x - xx;
-    const dy = y - yy;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const distance = Math.hypot(x - xx, y - yy);
 
     if (distance <= tolerance) {
       return true;
     }
 
     if (shape.type === "Arrow") {
-      const distanceToTip = Math.sqrt(
-        Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2),
-      );
+      const distanceToTip = Math.hypot(x - shape.endX, y - shape.endY);
 
-      if (distanceToTip <= 15) {
+      if (distanceToTip <= ARROW_HEAD_LENGTH) {
         return true;
       }
     }

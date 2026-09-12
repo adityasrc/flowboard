@@ -1,5 +1,6 @@
 import { Shape } from "./types";
 import { Tool } from "../components/Canvas";
+import { getCircleFromBounds } from "./geometry";
 
 export function createShape(
   tool: Tool,
@@ -23,13 +24,17 @@ export function createShape(
       };
 
     case "circle": {
-      const radiusX = (endX - startX) / 2;
-      const radiusY = (endY - startY) / 2;
+      const { centerX, centerY, radius } = getCircleFromBounds(
+        startX,
+        startY,
+        endX,
+        endY,
+      );
       return {
         type: "Circle",
-        centerX: startX + radiusX,
-        centerY: startY + radiusY,
-        radius: Math.max(Math.abs(radiusX), Math.abs(radiusY)),
+        centerX,
+        centerY,
+        radius,
         seed,
         id: crypto.randomUUID(),
       };

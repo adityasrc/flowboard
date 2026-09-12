@@ -2,6 +2,7 @@
 
 import { IconButton } from "./IconButton";
 import { useEffect, useRef, useState } from "react";
+import { isAxiosError } from "@/lib/api";
 import {
   Pencil,
   Circle,
@@ -51,6 +52,10 @@ export type Tool =
 export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [shapeCount, setShapeCount] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<WhiteboardEngine | null>(null);
@@ -94,27 +99,67 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
       canvas.style.height = `${window.innerHeight}px`;
 
       const ctx = canvas.getContext("2d");
-      if (ctx) ctx.scale(dpr, dpr);
+      if (ctx) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+      }
 
       gameRef.current?.render();
     };
 
     handleResize();
 
-    const game = new WhiteboardEngine(canvas, roomId, socket, (count) => {
-      setShapeCount(count);
-    });
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        handleResize();
+      }, 150);
+    };
+
+    const game = new WhiteboardEngine(
+      canvas,
+      roomId,
+      socket,
+      (count) => {
+        setShapeCount(count);
+      },
+      (success, err) => {
+        setIsLoaded(true);
+        if (!success) {
+          if (isAxiosError(err)) {
+            if (err.response?.status === 404) {
+              router.push("/dashboard?error=not_found");
+              return;
+            }
+            if (err.response?.status === 403) {
+              router.push("/dashboard?error=access_denied");
+              return;
+            }
+          }
+          setLoadError("Couldn't load previous drawings.");
+        } else {
+          setLoadError(null);
+        }
+      },
+      (undoAvailable, redoAvailable) => {
+        setCanUndo(undoAvailable);
+        setCanRedo(redoAvailable);
+      },
+    );
     game.setTool(selectedTool);
     gameRef.current = game;
     onEngineReady?.(game);
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", debouncedResize);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", debouncedResize);
+      clearTimeout(resizeTimeout);
       game.destroy();
       gameRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, socket]);
 
   return (
@@ -133,7 +178,7 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
               Leave canvas?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[13px] text-slate-500">
-              Any unsaved changes will be lost.
+              You&apos;ll return to your dashboard. Your drawings are saved automatically.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-3">
@@ -155,16 +200,34 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
 
       <canvas ref={canvasRef} className="bg-transparent block absolute inset-0" />
 
-      {shapeCount === 0 && (
+      {isLoaded && !loadError && shapeCount === 0 && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-slate-300 font-medium flex flex-col items-center gap-1 select-none z-0">
           <p>Start drawing...</p>
           <p className="text-sm font-normal">Use the toolbar above to sketch</p>
         </div>
       )}
 
+      {loadError && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-red-50 text-red-700 text-xs font-medium px-4 py-2 rounded-full border border-red-200 shadow-sm">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(null);
+              gameRef.current?.init();
+            }}
+            className="underline hover:text-red-900 cursor-pointer font-semibold"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <Topbar
-        setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
+        setSelectedTool={setSelectedTool}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onUndo={() => gameRef.current?.undo()}
         onRedo={() => gameRef.current?.redo()}
         onLeave={() => setShowLeaveDialog(true)}
@@ -177,6 +240,8 @@ export function Canvas({ roomId, socket, onEngineReady }: CanvasProps) {
 function Topbar({
   selectedTool,
   setSelectedTool,
+  canUndo,
+  canRedo,
   onUndo,
   onRedo,
   onLeave,
@@ -184,6 +249,8 @@ function Topbar({
 }: {
   selectedTool: Tool;
   setSelectedTool: (s: Tool) => void;
+  canUndo: boolean;
+  canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onLeave: () => void;
@@ -192,8 +259,8 @@ function Topbar({
   const ICON_SIZE = 18;
 
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md px-1.5 py-1.5 rounded-xl shadow-md border border-slate-200/80 select-none">
-      <div className="flex gap-1 items-center">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2rem)] bg-white/90 backdrop-blur-md px-1.5 py-1.5 rounded-xl shadow-md border border-slate-200/80 select-none overflow-x-auto no-scrollbar">
+      <div className="flex gap-1 items-center w-max">
         <IconButton
           onClick={() => setSelectedTool("pencil")}
           activated={selectedTool === "pencil"}
@@ -250,7 +317,7 @@ function Topbar({
           aria-label="Select Text Tool"
         />
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
+        <div className="w-px h-4 bg-slate-200 mx-1 shrink-0" />
 
         <IconButton
           onClick={() => setSelectedTool("eraser")}
@@ -260,25 +327,27 @@ function Topbar({
           aria-label="Select Eraser Tool"
         />
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
+        <div className="w-px h-4 bg-slate-200 mx-1 shrink-0" />
 
         <IconButton
           onClick={onUndo}
           activated={false}
+          disabled={!canUndo}
           icon={<Undo size={ICON_SIZE} />}
-          title="Undo (Ctrl+Z)"
+          title={canUndo ? "Undo (Ctrl+Z)" : "Undo"}
           aria-label="Undo last action"
         />
 
         <IconButton
           onClick={onRedo}
           activated={false}
+          disabled={!canRedo}
           icon={<Redo size={ICON_SIZE} />}
-          title="Redo (Ctrl+Y)"
+          title={canRedo ? "Redo (Ctrl+Y)" : "Redo"}
           aria-label="Redo last action"
         />
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
+        <div className="w-px h-4 bg-slate-200 mx-1 shrink-0" />
 
         <IconButton
           onClick={onDownload}
@@ -294,6 +363,7 @@ function Topbar({
           icon={<LogOut size={ICON_SIZE} />}
           title="Leave Room"
           aria-label="Leave Room"
+          className="hover:text-red-600 hover:bg-red-50"
         />
       </div>
     </div>

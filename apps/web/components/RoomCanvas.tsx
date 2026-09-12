@@ -33,6 +33,26 @@ export function RoomCanvas({ roomId }: CanvasProps) {
       );
     }, 3000);
 
+    function safelyCloseSocket(s: WebSocket | null) {
+      if (!s) return;
+      s.onopen = null;
+      s.onerror = null;
+      s.onclose = null;
+      s.onmessage = null;
+
+      if (s.readyState === WebSocket.CONNECTING) {
+        s.onopen = () => {
+          try {
+            s.close(1000, "Clean unmount");
+          } catch {}
+        };
+      } else if (s.readyState === WebSocket.OPEN) {
+        try {
+          s.close(1000, "Clean unmount");
+        } catch {}
+      }
+    }
+
     function connect() {
       if (isReconnecting) return;
 
@@ -49,7 +69,7 @@ export function RoomCanvas({ roomId }: CanvasProps) {
       }
 
       if (wsRef.current) {
-        try { wsRef.current.close(); } catch {}
+        safelyCloseSocket(wsRef.current);
         wsRef.current = null;
       }
 
@@ -58,8 +78,10 @@ export function RoomCanvas({ roomId }: CanvasProps) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        if (cancelled) {
-          ws.close();
+        if (cancelled || wsRef.current !== ws) {
+          try {
+            ws.close(1000, "Clean unmount");
+          } catch {}
           return;
         }
 
@@ -70,19 +92,23 @@ export function RoomCanvas({ roomId }: CanvasProps) {
         ws.send(JSON.stringify({ type: "join_room", roomId }));
 
         if (engineRef.current) {
-          // Reconnect: update the existing engine's socket and flush the queue.
-          // Canvas stays mounted, engine stays alive, no data loss.
+          // Reconnect: update socket and flush queued shapes
           setIsConnected(true);
           engineRef.current.updateSocket(ws);
         } else {
-          // First connect: mount Canvas for the first time.
+          // Initial connect: mount canvas
           setSocket(ws);
           setIsConnected(true);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+      ws.onerror = () => {
+        if (cancelled || wsRef.current !== ws) return;
+        // In browser WebSockets, the error event contains no details (serializes as {}).
+        // Diagnostic status codes and close reasons are captured in ws.onclose below.
+        if (process.env.NODE_ENV === "development") {
+          console.warn("WebSocket connection error; awaiting close event for details.");
+        }
       };
 
       ws.onclose = (event) => {
@@ -91,10 +117,17 @@ export function RoomCanvas({ roomId }: CanvasProps) {
         wsRef.current = null;
         setIsConnected(false);
 
-        if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
+        // Code 1000 is a normal clean close (e.g. clean unmount or page exit)
+        if (event.code === 1000) return;
+
+        console.warn(
+          `WebSocket closed (code: ${event.code}${event.reason ? `, reason: "${event.reason}"` : ""})`,
+        );
+
+        if (event.code === 1008) {
           try {
             localStorage.removeItem("token");
-          } catch (e) {}
+          } catch {}
           router.push("/signin");
           return;
         }
@@ -122,7 +155,10 @@ export function RoomCanvas({ roomId }: CanvasProps) {
     const handleOffline = () => {
       setIsConnected(false);
       setLoadingText("Connection lost. Drawings will sync when reconnected.");
-      try { wsRef.current?.close(); } catch {}
+      try {
+        safelyCloseSocket(wsRef.current);
+        wsRef.current = null;
+      } catch {}
     };
 
     window.addEventListener("online", handleOnline);
@@ -136,7 +172,8 @@ export function RoomCanvas({ roomId }: CanvasProps) {
       clearTimeout(coldStartTimer);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      wsRef.current?.close();
+      safelyCloseSocket(wsRef.current);
+      wsRef.current = null;
     };
   }, [roomId, router]);
 
