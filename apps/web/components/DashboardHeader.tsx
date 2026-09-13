@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Layers, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BrandMark } from "./BrandMark";
 
 interface UserProps {
   user?: {
@@ -37,22 +38,17 @@ export function DashboardHeader({ user }: UserProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
-      <div className="max-w-6xl mx-auto flex h-14 items-center justify-between px-5">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-slate-50/90 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <div className="flex items-center gap-2.5">
-          <Link href="/" className="flex items-center gap-2 group shrink-0">
-            <div className="bg-black p-[7px] rounded-lg">
-              <Layers className="h-4 w-4 text-white" strokeWidth={2} />
-            </div>
-            <span className="font-semibold text-[15px] tracking-tight text-slate-950">
-              Flowboard
-            </span>
+          <Link href="/" className="group flex shrink-0 items-center gap-2">
+            <BrandMark />
           </Link>
           <div className="flex items-center gap-2.5">
-            <span className="text-[13px] text-slate-300 font-light hidden sm:inline-block">
+            <span className="hidden text-sm font-light text-slate-300 sm:inline-block">
               /
             </span>
-            <span className="text-[13px] text-slate-500 font-medium hidden sm:inline-block tracking-tight">
+            <span className="hidden text-sm font-medium tracking-tight text-slate-500 sm:inline-block">
               Dashboard
             </span>
           </div>
@@ -61,8 +57,11 @@ export function DashboardHeader({ user }: UserProps) {
         <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger className="focus:outline-none">
-              <Avatar className="h-8 w-8 cursor-pointer ring-1 ring-slate-200 hover:ring-slate-300 transition-all">
-                <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+              <Avatar className="size-8 cursor-pointer ring-1 ring-slate-200 transition-all hover:ring-slate-300">
+                <AvatarImage
+                  src={user?.image ?? undefined}
+                  alt={user?.name || "User"}
+                />
                 <AvatarFallback className="bg-slate-100 text-slate-600 text-[13px] font-medium">
                   {getInitials(user?.name)}
                 </AvatarFallback>
@@ -71,12 +70,15 @@ export function DashboardHeader({ user }: UserProps) {
 
             <DropdownMenuContent
               align="end"
-              className="w-56 mt-1.5 border-slate-200/80 rounded-xl p-1.5"
+              className="mt-1.5 w-56 rounded-xl border-slate-200 p-1.5"
             >
               <DropdownMenuLabel className="font-normal py-1.5 px-2">
                 <div className="flex items-center gap-2.5">
                   <Avatar className="h-8 w-8 rounded-lg border border-slate-200/80 shrink-0">
-                    <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+                    <AvatarImage
+                      src={user?.image ?? undefined}
+                      alt={user?.name || "User"}
+                    />
                     <AvatarFallback className="bg-slate-100 text-slate-700 text-[12px] font-medium rounded-lg">
                       {getInitials(user?.name)}
                     </AvatarFallback>

@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { HTTP_BACKEND } from "@/config";
+import { api, isAxiosError } from "@/lib/api";
 import { generateSlug } from "@repo/common";
 import { getUserFromToken } from "@/lib/auth";
 import {
@@ -42,8 +41,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface Room {
-  id: string;
+  id: number;
   slug: string;
+  isOwner?: boolean;
 }
 
 export default function Dashboard() {
@@ -56,6 +56,8 @@ export default function Dashboard() {
   const [slug, setSlug] = useState("");
   const [joinError, setJoinError] = useState("");
   const [createError, setCreateError] = useState("");
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
@@ -69,22 +71,23 @@ export default function Dashboard() {
 
   const router = useRouter();
 
-  const fetchRooms = useCallback(async () => {
-    setIsFetching(true);
+  const fetchRooms = useCallback(async (showSkeleton = true) => {
+    if (showSkeleton) {
+      setIsFetching(true);
+    }
+    setFetchError(null);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      const response = await axios.get(`${HTTP_BACKEND}/api/v1/canvases`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get<{ rooms: Room[] }>("/api/v1/canvases");
       setRooms(response.data.rooms || []);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         console.error("Failed to fetch canvases:", err.message);
       }
+      setFetchError("Couldn't load your canvases. Please try again.");
     } finally {
-      setIsFetching(false);
+      if (showSkeleton) {
+        setIsFetching(false);
+      }
     }
   }, []);
 
@@ -98,23 +101,13 @@ export default function Dashboard() {
     setCreateError("");
     setIsCreating(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        router.push("/signin");
-        return;
-      }
-
-      await axios.post(
-        `${HTTP_BACKEND}/api/v1/canvas`,
-        { name: roomName },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post("/api/v1/canvases", { name: roomName });
 
       setRoomName("");
       setIsOpen(false);
-      fetchRooms();
+      fetchRooms(false);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
+      if (isAxiosError(err) && err.response?.status === 409) {
         setCreateError("A canvas with this name already exists.");
       } else {
         setCreateError("Something went wrong. Please try again.");
@@ -124,25 +117,19 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteRoom = async (roomId: string) => {
+  const handleDeleteRoom = async (roomSlug: string) => {
+    setDeleteError(null);
     setIsDeleting(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        router.push("/signin");
-        return;
-      }
+      setRooms((prev) => prev.filter((r) => r.slug !== roomSlug));
 
-      setRooms((prev) => prev.filter((r) => r.id !== roomId));
-
-      await axios.delete(`${HTTP_BACKEND}/api/v1/canvas/${roomId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/api/v1/canvases/${roomSlug}`);
 
       setRoomToDelete(null);
     } catch (err: unknown) {
       console.error("Failed to delete canvas:", err);
-      fetchRooms();
+      setDeleteError("Failed to update canvas. Please try again.");
+      fetchRooms(false);
     } finally {
       setIsDeleting(false);
     }
@@ -190,20 +177,12 @@ export default function Dashboard() {
       return;
     }
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/signin");
-      return;
-    }
-
     setIsJoining(true);
     try {
-      await axios.get(`${HTTP_BACKEND}/api/v1/shapes/${formattedSlug}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.post(`/api/v1/canvases/${formattedSlug}/members`, {});
       router.push(`/canvas/${formattedSlug}`);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         if (err.response?.status === 404) {
           setJoinError("Canvas not found. Please check the name.");
         } else if (err.response?.status === 403) {
@@ -219,7 +198,10 @@ export default function Dashboard() {
     }
   };
 
-  const handleCopyInviteLink = async (e: React.MouseEvent, roomSlug: string) => {
+  const handleCopyInviteLink = async (
+    e: React.MouseEvent,
+    roomSlug: string,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -252,49 +234,21 @@ export default function Dashboard() {
     : "your-canvas-name";
 
   return (
-    <div className="min-h-screen bg-slate-50/60 antialiased font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-950">
       <DashboardHeader user={currentUser} />
 
-      <main className="max-w-6xl mx-auto px-5 py-6 sm:py-8">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-            Canvases
-          </h1>
-          <p className="text-[13px] text-slate-500">
-            Manage your canvases and collaborations.
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-4 mb-6">
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Input
-                className="w-full sm:w-68 h-9 text-[13px] bg-white border-slate-200 rounded-lg placeholder:text-slate-400 focus-visible:ring-slate-950 shadow-xs"
-                placeholder="Enter canvas name..."
-                value={slug}
-                onChange={(e) => {
-                  setSlug(e.target.value);
-                  setJoinError("");
-                }}
-                onKeyDown={(e) => e.key === "Enter" && handleJoinBySlug()}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 px-3.5 text-[13px] font-medium text-slate-700 bg-white border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer shrink-0 shadow-xs"
-                onClick={handleJoinBySlug}
-                disabled={!slug.trim() || isJoining}
-              >
-                {isJoining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Join"}
-              </Button>
-            </div>
-            {joinError && (
-              <span className="text-xs font-medium text-red-500 pl-0.5">
-                {joinError}
-              </span>
-            )}
+      <main className="mx-auto max-w-6xl px-6 py-10 sm:py-14">
+        <div className="flex flex-col gap-6 border-b border-slate-200 pb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500">Your workspace</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+              Canvases
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Create a space for the next idea, or continue one already in
+              motion.
+            </p>
           </div>
-
           <Dialog
             open={isOpen}
             onOpenChange={(open) => {
@@ -308,16 +262,16 @@ export default function Dashboard() {
             <DialogTrigger asChild>
               <Button
                 type="button"
-                className="h-9 px-3.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-medium shadow-xs cursor-pointer flex items-center justify-center gap-1.5 w-full sm:w-auto transition-colors shrink-0"
+                className="h-10 w-full shrink-0 gap-1.5 rounded-lg sm:w-auto"
               >
-                <Plus className="h-4 w-4" />
-                New Canvas
+                <Plus className="size-4" />
+                New canvas
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md rounded-xl border-slate-200/80 p-6">
               <DialogHeader className="gap-1">
                 <DialogTitle className="text-lg font-semibold tracking-tight text-slate-950">
-                  New Canvas
+                  New canvas
                 </DialogTitle>
                 <DialogDescription className="text-[13px] text-slate-500">
                   Give your canvas a custom name to get started.
@@ -330,7 +284,7 @@ export default function Dashboard() {
                     htmlFor="name"
                     className="text-[13px] font-medium text-slate-700"
                   >
-                    Canvas Name
+                    Canvas name
                   </Label>
                   <Input
                     id="name"
@@ -342,17 +296,15 @@ export default function Dashboard() {
                       setRoomName(e.target.value);
                       setCreateError("");
                     }}
-                    className="h-9 rounded-lg border-slate-200 text-[13px] focus-visible:ring-slate-950"
+                    className="h-10 rounded-lg border-slate-300 text-sm focus-visible:ring-slate-950"
                     onKeyDown={(e) => e.key === "Enter" && handleCreateRoom()}
                   />
-
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 pt-0.5">
-                    <span>URL Preview:</span>
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 font-mono text-[11.5px]">
+                  <div className="flex items-center gap-1.5 pt-0.5 text-xs text-slate-500">
+                    <span>URL preview:</span>
+                    <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800">
                       /canvas/{generatedPreviewSlug}
                     </code>
                   </div>
-
                   {createError && (
                     <span className="text-xs font-medium text-red-500">
                       {createError}
@@ -361,35 +313,71 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 mt-2">
+              <div className="mt-2 flex justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 px-3.5 text-[13px] rounded-lg border-slate-200 hover:bg-slate-50"
+                  className="h-9 rounded-lg border-slate-200"
                   onClick={() => setIsOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button
-                  className="h-9 px-4 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-medium shadow-none flex items-center gap-2 cursor-pointer transition-colors"
+                  className="h-9 rounded-lg"
                   type="button"
                   onClick={handleCreateRoom}
                   disabled={isCreating || generatedPreviewSlug.length < 4}
                 >
-                  {isCreating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {isCreating ? "Creating..." : "Create Canvas"}
+                  {isCreating && <Loader2 className="size-3.5 animate-spin" />}
+                  {isCreating ? "Creating..." : "Create canvas"}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
+        <div className="mt-8 mb-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Input
+                aria-label="Canvas name"
+                className="h-10 w-full rounded-lg border-slate-300 bg-white text-sm placeholder:text-slate-400 focus-visible:ring-slate-950 sm:w-72"
+                placeholder="Join a canvas by name"
+                value={slug}
+                onChange={(e) => {
+                  setSlug(e.target.value);
+                  setJoinError("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleJoinBySlug()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 shrink-0 rounded-lg border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                onClick={handleJoinBySlug}
+                disabled={!slug.trim() || isJoining}
+              >
+                {isJoining ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  "Join"
+                )}
+              </Button>
+            </div>
+            {joinError && (
+              <span className="text-xs font-medium text-red-500 pl-0.5">
+                {joinError}
+              </span>
+            )}
+          </div>
+        </div>
+
         {isFetching ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="rounded-xl border border-slate-200/80 bg-white overflow-hidden flex flex-col"
+                className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white"
               >
                 <Skeleton className="h-28 w-full bg-slate-100/80" />
                 <div className="p-3.5 space-y-2.5">
@@ -403,35 +391,55 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-red-200 bg-red-50/40 px-6 py-16 text-center">
+            <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-red-200 bg-red-100 text-red-600">
+              <Layers className="h-5 w-5" strokeWidth={1.75} />
+            </div>
+            <h3 className="mb-1 text-base font-semibold tracking-tight text-slate-950">
+              Couldn&apos;t load canvases
+            </h3>
+            <p className="mb-5 max-w-xs text-sm leading-6 text-slate-600">
+              {fetchError}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => fetchRooms(true)}
+              className="h-10 gap-1.5 rounded-lg border-slate-300 bg-white px-4 hover:bg-slate-50"
+            >
+              Retry
+            </Button>
+          </div>
         ) : rooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 px-6 border border-dashed border-slate-200/90 rounded-xl bg-white/80 text-center">
-            <div className="w-10 h-10 rounded-lg bg-slate-100/90 border border-slate-200/60 flex items-center justify-center mb-3 shadow-2xs">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+            <div className="mb-4 flex size-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-100">
               <Layers className="h-5 w-5 text-slate-500" strokeWidth={1.75} />
             </div>
-            <h3 className="text-[15px] font-semibold tracking-tight text-slate-950 mb-1">
+            <h3 className="mb-1 text-base font-semibold tracking-tight text-slate-950">
               No canvases yet
             </h3>
-            <p className="text-[13px] text-slate-500 mb-4 max-w-xs">
-              Create your first canvas to start diagramming and collaborating in real-time.
+            <p className="mb-5 max-w-xs text-sm leading-6 text-slate-500">
+              Create your first canvas to start diagramming and collaborating in
+              real-time.
             </p>
             <Button
               onClick={() => setIsOpen(true)}
-              className="h-9 px-4 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-[13px] font-medium shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              className="h-10 gap-1.5 rounded-lg px-4"
             >
               <Plus className="h-4 w-4" />
-              Create Canvas
+              Create canvas
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {rooms.map((room) => (
               <Link
                 key={room.id}
                 href={`/canvas/${room.slug}`}
-                className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 cursor-pointer"
+                className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
               >
-                <div className="rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 overflow-hidden flex flex-col h-full">
-                  <div className="h-28 border-b border-slate-100 relative flex items-center justify-center overflow-hidden">
+                <div className="card-elevated flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white group-hover:border-slate-300">
+                  <div className="relative flex h-32 items-center justify-center overflow-hidden border-b border-slate-200">
                     <CanvasThumbnail slug={room.slug} />
 
                     <button
@@ -439,26 +447,27 @@ export default function Dashboard() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        setDeleteError(null);
                         setRoomToDelete(room);
                       }}
                       className="absolute top-2 right-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-white/90 border border-transparent hover:border-slate-200/80 opacity-0 group-hover:opacity-100 transition-all cursor-pointer z-10"
-                      title="Delete Canvas"
+                      title={room.isOwner ? "Delete canvas" : "Leave canvas"}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <div className="p-3.5 flex flex-col justify-between flex-1 gap-2.5">
+                  <div className="flex flex-1 flex-col justify-between gap-3 p-4">
                     <div>
-                      <h3 className="text-[13.5px] font-semibold text-slate-950 group-hover:text-black truncate tracking-tight">
+                      <h3 className="truncate text-sm font-semibold tracking-tight text-slate-950">
                         {room.slug}
                       </h3>
-                      <p className="text-[11.5px] text-slate-400 font-mono mt-0.5 truncate group-hover:text-slate-600 transition-colors">
+                      <p className="mt-1 truncate font-mono text-xs text-slate-400 transition-colors group-hover:text-slate-600">
                         /canvas/{room.slug}
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[12px]">
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
                       <button
                         type="button"
                         onClick={(e) => handleCopyInviteLink(e, room.slug)}
@@ -467,7 +476,9 @@ export default function Dashboard() {
                         {copiedSlug === room.slug ? (
                           <>
                             <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            <span className="text-emerald-600 font-medium">Copied!</span>
+                            <span className="text-emerald-600 font-medium">
+                              Copied!
+                            </span>
                           </>
                         ) : (
                           <>
@@ -488,26 +499,55 @@ export default function Dashboard() {
 
       <AlertDialog
         open={!!roomToDelete}
-        onOpenChange={(open) => !open && setRoomToDelete(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRoomToDelete(null);
+            setDeleteError(null);
+          }
+        }}
       >
         <AlertDialogContent className="sm:max-w-md rounded-xl border-slate-200/80 p-6">
           <AlertDialogHeader className="gap-1">
             <AlertDialogTitle className="text-lg font-semibold tracking-tight text-slate-950">
-              Delete canvas?
+              {roomToDelete?.isOwner ? "Delete canvas?" : "Leave canvas?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[13px] text-slate-500">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-slate-800 font-mono">
-                /canvas/{roomToDelete?.slug}
-              </span>
-              ? This action cannot be undone.
+              {roomToDelete?.isOwner ? (
+                <>
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-slate-800 font-mono">
+                    /canvas/{roomToDelete?.slug}
+                  </span>
+                  ? This will permanently delete the canvas and all its drawings
+                  for all collaborators. This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to leave{" "}
+                  <span className="font-semibold text-slate-800 font-mono">
+                    /canvas/{roomToDelete?.slug}
+                  </span>
+                  ? It will be removed from your dashboard, but the canvas will
+                  remain available for other members.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {deleteError && (
+            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-600">
+              {deleteError}
+            </div>
+          )}
+
           <AlertDialogFooter className="gap-2 mt-3">
             <AlertDialogCancel
               disabled={isDeleting}
               className="h-9 px-3.5 text-[13px] rounded-lg border-slate-200 hover:bg-slate-50"
-              onClick={() => setRoomToDelete(null)}
+              onClick={() => {
+                setRoomToDelete(null);
+                setDeleteError(null);
+              }}
             >
               Cancel
             </AlertDialogCancel>
@@ -515,12 +555,20 @@ export default function Dashboard() {
               disabled={isDeleting}
               onClick={(e) => {
                 e.preventDefault();
-                if (roomToDelete) handleDeleteRoom(roomToDelete.id);
+                if (roomToDelete) handleDeleteRoom(roomToDelete.slug);
               }}
               className="h-9 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[13px] font-medium shadow-none cursor-pointer transition-colors"
             >
-              {isDeleting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-              {isDeleting ? "Deleting..." : "Delete Canvas"}
+              {isDeleting && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              )}
+              {isDeleting
+                ? roomToDelete?.isOwner
+                  ? "Deleting..."
+                  : "Leaving..."
+                : roomToDelete?.isOwner
+                  ? "Delete canvas"
+                  : "Leave canvas"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
