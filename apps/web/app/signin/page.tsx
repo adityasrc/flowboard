@@ -1,161 +1,117 @@
 "use client";
 
-import axios from "axios";
+import { useRouter } from "next/navigation";
+import { useRef, useState, type FormEvent } from "react";
+import { Loader2 } from "lucide-react";
+import { api, isAxiosError } from "@/lib/api";
+import { AuthLayout } from "@/components/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useRef, useState, type FormEvent } from "react";
-import { HTTP_BACKEND } from "@/config";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Layers, Loader2 } from "lucide-react";
 
 export default function Signin() {
   const router = useRouter();
-
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSignin(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
+  async function handleSignin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const email = emailRef.current?.value.trim();
     const password = passwordRef.current?.value;
-
     setError("");
 
     if (!email || !password) {
-      setError("Email and password are required");
+      setError("Email and password are required.");
       return;
     }
 
     setLoading(true);
-
     try {
-      const response = await axios.post(`${HTTP_BACKEND}/api/v1/auth/signin`, {
+      const response = await api.post("/api/v1/auth/signin", {
         email,
         password,
       });
-
-      const jwt = response.data.token;
-
-      try {
-        localStorage.setItem("token", jwt);
-      } catch {
-        // Storage unavailable
-      }
-
+      localStorage.setItem("token", response.data.token);
       router.push("/dashboard");
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError("Server error or invalid credentials");
-      }
+      setError(
+        isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : "Server error or invalid credentials.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-900 selection:bg-slate-200 antialiased font-sans flex flex-col justify-center items-center px-4 pb-8">
-      <div className="flex flex-col items-center mb-4.5 text-center">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="bg-black p-[7px] rounded-lg">
-            <Layers className="h-4 w-4 text-white" strokeWidth={2} />
-          </div>
-          <span className="font-semibold text-[15px] tracking-tight text-slate-950">
-            Flowboard
-          </span>
-        </Link>
-      </div>
-
-      <Card className="w-full max-w-[380px] rounded-xl border border-slate-200/80 bg-white">
-        <CardHeader className="text-center pt-6 pb-0 px-6 flex flex-col gap-1 items-center">
-          <CardTitle className="text-xl font-semibold tracking-tight text-slate-950">
-            Welcome back
-          </CardTitle>
-          <CardDescription className="text-[13px] text-slate-500 font-normal">
-            Sign in to continue.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="pt-5 pb-6 px-6">
-          <form onSubmit={handleSignin} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-[13px] font-medium text-slate-700">
-                Email
-              </Label>
-              <Input
-                ref={emailRef}
-                id="email"
-                name="email"
-                type="email"
-                placeholder="me@example.com"
-                autoComplete="email"
-                disabled={loading}
-                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-[13px] font-medium text-slate-700">
-                Password
-              </Label>
-              <Input
-                ref={passwordRef}
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                disabled={loading}
-                className="h-10 rounded-lg border-slate-200 text-sm focus-visible:ring-slate-950"
-              />
-            </div>
-
-            {error && (
-              <div className="p-2.5 bg-red-50/80 border border-red-200/80 rounded-lg text-center">
-                <p className="text-xs font-medium text-red-600">{error}</p>
-              </div>
-            )}
-
-            <div className="pt-1.5 space-y-3">
-              <Button
-                type="submit"
-                className="w-full h-10 rounded-lg bg-slate-950 hover:bg-slate-800 text-white text-sm font-medium gap-2 transition-colors duration-150"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
-
-              <p className="text-xs text-center text-slate-500">
-                Don&apos;t have an account?{" "}
-                <Link href="/signup" className="font-semibold text-slate-950 hover:underline">
-                  Sign up
-                </Link>
-              </p>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout
+      eyebrow="Sign in"
+      title="Welcome back."
+      subtitle="Enter your details to continue to your workspace."
+      bottomPrompt="Don't have an account?"
+      bottomLinkText="Sign up"
+      bottomLinkHref="/signup"
+    >
+      <form onSubmit={handleSignin} className="mt-8 space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm text-slate-700">
+            Email
+          </Label>
+          <Input
+            ref={emailRef}
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            autoComplete="email"
+            disabled={loading}
+            autoFocus
+            className="h-11 rounded-lg border-slate-300 bg-white focus-visible:ring-slate-950"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-sm text-slate-700">
+            Password
+          </Label>
+          <Input
+            ref={passwordRef}
+            id="password"
+            name="password"
+            type="password"
+            placeholder="Enter your password"
+            autoComplete="current-password"
+            disabled={loading}
+            className="h-11 rounded-lg border-slate-300 bg-white focus-visible:ring-slate-950"
+          />
+        </div>
+        {error && (
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full rounded-lg"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Signing in
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }

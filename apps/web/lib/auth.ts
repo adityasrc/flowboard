@@ -1,9 +1,8 @@
 export interface AuthUser {
-  id?: string;
+  id?: number | string;
   name?: string;
   email?: string;
   exp?: number;
-  [key: string]: unknown;
 }
 
 export function getUserFromToken(token: string): AuthUser | null {
@@ -16,7 +15,7 @@ export function getUserFromToken(token: string): AuthUser | null {
       atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
+        .join(""),
     );
     const payload = JSON.parse(jsonPayload) as AuthUser;
 
@@ -25,12 +24,13 @@ export function getUserFromToken(token: string): AuthUser | null {
     }
 
     return {
-      id: payload.id || (payload as Record<string, string>).userId,
-      name: payload.name || (payload as Record<string, string>).username || "",
+      id: payload.id,
+      name: payload.name || "",
       email: payload.email || "",
-      ...payload,
+      exp: payload.exp,
     };
   } catch {
     return null;
   }
 }
+
