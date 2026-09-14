@@ -1,60 +1,39 @@
-import { Layers } from "lucide-react";
+import { GITHUB_URL } from "@/config";
+import { BrandMark } from "./BrandMark";
+
+const links = [
+  ["GitHub", GITHUB_URL],
+  ["LinkedIn", "https://www.linkedin.com/in/adityaprakashio/"],
+  ["Resume", "/resume.pdf"],
+];
 
 export function LandingFooter() {
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="border-t border-slate-100 bg-white">
-      <div className="max-w-6xl mx-auto px-5 py-9">
-
-        <div className="flex flex-col items-center gap-5 sm:relative sm:flex-row sm:justify-center sm:items-center sm:gap-0">
-
-
-          <div className="flex items-center gap-2.5 sm:absolute sm:left-0">
-            <div className="bg-black p-[6px] rounded-md shrink-0">
-              <Layers className="h-3.5 w-3.5 text-white" strokeWidth={2} />
-            </div>
-            <div>
-              <span className="font-semibold text-sm text-black tracking-tight leading-none block">
-                Flowboard
-              </span>
-              <span className="text-xs text-slate-400 font-mono leading-tight block mt-0.5">
-                Engineering Portfolio
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
+    <footer className="border-t border-slate-200/80 bg-slate-50 px-6 py-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 text-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-2">
+          <BrandMark />
+          <span className="text-slate-400">·</span>
+          <span className="text-slate-500">
+            A real-time collaborative canvas
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-500">
+          <span className="text-slate-600">Built by Aditya Prakash</span>
+          <span className="text-slate-300 select-none">·</span>
+          {links.map(([label, href]) => (
             <a
-              href="https://github.com/adityasrc"
+              key={label}
+              href={href}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-slate-500 hover:text-black transition-colors duration-150"
+              className="text-slate-500 transition-colors hover:text-slate-950"
             >
-              GitHub
+              {label}
             </a>
-            <a
-              href="https://www.linkedin.com/in/adityaprakashio/"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-slate-500 hover:text-black transition-colors duration-150"
-            >
-              LinkedIn
-            </a>
-            <a
-              href="/resume.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-slate-500 hover:text-black transition-colors duration-150"
-            >
-              Resume
-            </a>
-          </div>
-
-          <p className="text-xs font-mono text-slate-300 sm:absolute sm:right-0">
-            &copy; {currentYear} Flowboard
-          </p>
-
+          ))}
+          <span className="text-slate-300 select-none">·</span>
+          <span className="text-slate-400">© {new Date().getFullYear()}</span>
         </div>
       </div>
     </footer>

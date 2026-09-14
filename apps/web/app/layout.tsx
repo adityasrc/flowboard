@@ -18,19 +18,15 @@ const patrickHand = Patrick_Hand({
   variable: "--font-patrick-hand",
 });
 
-// Explicit Metadata type annotation ensures type safety across all SEO parameters
 export const metadata: Metadata = {
   title: {
-    default: "Flowboard | Real-Time Collaborative Whiteboard",
+    default: "Flowboard | Real-Time Collaborative Canvas",
     template: "%s | Flowboard",
   },
-  description: "A low-latency collaborative whiteboarding workspace powered by native WebSockets, Node.js, PostgreSQL, and Rough.js.",
-  keywords: ["whiteboard", "collaboration", "real-time", "websockets", "nextjs", "roughjs", "canvas", "system-design"],
+  description:
+    "A low-latency collaborative canvas workspace powered by native WebSockets, Node.js, PostgreSQL, and Rough.js.",
   icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico" },
-    ],
+    icon: "/icon.svg",
     shortcut: "/icon.svg",
     apple: "/icon.svg",
   },
@@ -42,8 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${patrickHand.variable} font-sans antialiased bg-white text-slate-900`}>
+    <html lang="en" className="scroll-smooth">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${patrickHand.variable} font-sans antialiased bg-white text-slate-900`}
+      >
         {children}
       </body>
     </html>

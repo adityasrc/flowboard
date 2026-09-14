@@ -1,126 +1,262 @@
 import Link from "next/link";
-import { ArrowRight, GithubIcon, Terminal } from "lucide-react";
+import {
+  ArrowRight,
+  GithubIcon,
+  Save,
+  Share2,
+  Terminal,
+  Users,
+} from "lucide-react";
 import { LandingHeader } from "@/components/LandingHeader";
 import { LandingFooter } from "@/components/LandingFooter";
 import { CanvasMockup } from "@/components/CanvasMockup";
 import { Button } from "@/components/ui/button";
+import { GITHUB_URL } from "@/config";
+
+const benefits = [
+  {
+    icon: Users,
+    eyebrow: "Live collaboration",
+    title: "Work in the same space, at the same time.",
+    description:
+      "Shapes, edits, and cursors move together, so the conversation never drifts away from the work.",
+  },
+  {
+    icon: Save,
+    eyebrow: "Persistent by default",
+    title: "Pick up exactly where you left off.",
+    description:
+      "Every canvas is saved as you work. Refresh, reconnect, and return to the same canvas without losing the thread.",
+  },
+  {
+    icon: Share2,
+    eyebrow: "Built to share",
+    title: "One link is all your team needs.",
+    description:
+      "Create a canvas, send its unique URL, and bring people onto the same canvas in a moment.",
+  },
+];
+
+const steps = [
+  {
+    step: "01",
+    title: "Create a canvas",
+    description: "Start with an empty, persistent canvas for your idea.",
+  },
+  {
+    step: "02",
+    title: "Invite your team",
+    description:
+      "Share the canvas URL with the people you want in the conversation.",
+  },
+  {
+    step: "03",
+    title: "Think out loud",
+    description:
+      "Sketch, map, and refine together while every change stays in sync.",
+  },
+];
 
 export default function Index() {
   return (
-    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-900 selection:bg-slate-200 antialiased font-sans flex flex-col">
+    <div className="flex min-h-screen flex-col bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-slate-950 selection:bg-slate-200">
       <LandingHeader />
-
       <main className="flex-1">
-        <section className="pt-28 pb-14 md:pt-36 md:pb-16 px-6 max-w-5xl mx-auto text-center flex flex-col items-center">
-          <div className="mb-7 inline-flex items-center gap-2 border border-slate-200/80 bg-white rounded-full px-3.5 py-1.5 text-[11.5px] font-mono text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-            <Terminal size={12} className="text-slate-400 shrink-0" />
-            TypeScript · Turborepo
+        <section className="border-b border-slate-200/80 px-6 pb-20 pt-28 sm:pt-36 lg:pb-28">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="animate-fade-in-up mb-6 flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                <span className="h-px w-6 bg-slate-300" />A shared space for
+                ideas
+                <span className="h-px w-6 bg-slate-300" />
+              </p>
+              <h1
+                className="animate-fade-in-up text-balance text-5xl font-semibold tracking-tighter text-slate-950 sm:text-6xl lg:text-7xl"
+                style={{ animationDelay: "80ms" }}
+              >
+                Make the messy part of thinking feel shared.
+              </h1>
+              <p
+                className="animate-fade-in-up mx-auto mt-6 max-w-xl text-pretty text-base leading-7 text-slate-600 sm:text-lg"
+                style={{ animationDelay: "160ms" }}
+              >
+                Flowboard is a real-time collaborative whiteboard for sketching
+                ideas, mapping systems, and thinking together.
+              </p>
+              <div
+                className="animate-fade-in-up mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
+                style={{ animationDelay: "240ms" }}
+              >
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full gap-2 rounded-lg sm:w-auto"
+                >
+                  <Link href="/signup">
+                    Start drawing <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="w-full gap-2 rounded-lg bg-white sm:w-auto"
+                >
+                  <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                    <GithubIcon className="size-4" />
+                    View source
+                  </a>
+                </Button>
+              </div>
+              <p
+                className="animate-fade-in-up mt-6 text-xs text-slate-500"
+                style={{ animationDelay: "320ms" }}
+              >
+                Free account. Takes a few seconds to get started.
+              </p>
+            </div>
+            <div className="animate-float mt-14 lg:mt-16">
+              <CanvasMockup />
+            </div>
           </div>
+        </section>
 
-          <h1 className="text-4xl sm:text-6xl md:text-[72px] font-semibold tracking-tighter leading-[1.1] mb-5">
-            <span className="text-neutral-900">Draw together in real time.</span>
-            <br className="hidden sm:block" />
-            <span className="text-slate-400">Built on native WebSockets.</span>
-          </h1>
+        <section className="bg-slate-950 px-6 py-20 text-white sm:py-24">
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+            <div>
+              <div className="flex size-10 items-center justify-center rounded-lg bg-white/10 text-slate-200">
+                <Terminal className="size-4" />
+              </div>
+              <p className="mt-8 text-sm font-medium text-slate-400">
+                Builder&apos;s note
+              </p>
+              <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+                A small stack, built to be understood end-to-end.
+              </h2>
+            </div>
+            <div className="border-t border-white/15 pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+              <p className="text-base leading-7 text-slate-300">
+                I built Flowboard to explore real-time collaboration from first
+                principles without relying on hosted BaaS middlemen. It pairs a
+                custom Node.js WebSocket server for low-latency canvas events
+                with PostgreSQL for durable rooms, while the canvas renderer
+                draws directly using the 2D canvas API and Rough.js.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-2 text-xs font-medium text-slate-300">
+                {[
+                  "TypeScript",
+                  "Next.js",
+                  "Node.js",
+                  "ws",
+                  "PostgreSQL",
+                  "Prisma",
+                  "Rough.js",
+                ].map((technology) => (
+                  <span
+                    key={technology}
+                    className="rounded-md border border-white/15 px-2.5 py-1.5"
+                  >
+                    {technology}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
-          <p className="text-base md:text-lg text-slate-600 max-w-xl mx-auto mb-10 leading-relaxed font-normal">
-            Collaborative whiteboard built on a custom Node.js WebSocket server and PostgreSQL. No third-party real-time services.
-          </p>
+        <section className="px-6 py-20 sm:py-28">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-10 border-b border-slate-200 pb-12 md:grid-cols-2 md:items-end">
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  A canvas that keeps up
+                </p>
+                <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                  Everything you need to stay in the flow.
+                </h2>
+              </div>
+              <p className="max-w-md text-base leading-7 text-slate-600 md:justify-self-end">
+                The interface stays out of the way, leaving room for rough
+                diagrams, clear decisions, and the people making them.
+              </p>
+            </div>
+            <div className="grid divide-y divide-slate-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+              {benefits.map(
+                ({ icon: Icon, eyebrow, title, description }, index) => (
+                  <article
+                    key={title}
+                    className="py-10 md:px-8 md:py-12 first:md:pl-0 last:md:pr-0"
+                  >
+                    <div className="flex size-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700">
+                      <Icon className="size-4" strokeWidth={1.75} />
+                    </div>
+                    <p className="mt-8 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                      0{index + 1} · {eyebrow}
+                    </p>
+                    <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
+                      {title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {description}
+                    </p>
+                  </article>
+                ),
+              )}
+            </div>
+          </div>
+        </section>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto mb-[42px]">
-            <Button asChild className="w-full sm:w-auto rounded-lg gap-2" size="lg">
-              <Link href="/dashboard">
-                Start drawing
-                <ArrowRight size={15} />
+        <section className="px-6 pb-20 pt-14 sm:pb-28 sm:pt-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-xl text-center">
+              <p className="text-sm font-medium text-slate-500">
+                From an empty canvas to a shared plan
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                Get everyone on the same page.
+              </h2>
+            </div>
+            <ol className="mt-12 grid gap-6 md:grid-cols-3">
+              {steps.map(({ step, title, description }) => (
+                <li
+                  key={step}
+                  className="relative flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-7 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div>
+                    <span className="inline-block rounded-full bg-slate-100 px-2.5 py-0.5 font-mono text-xs font-medium text-slate-500">
+                      Step {step}
+                    </span>
+                    <h3 className="mt-6 text-lg font-semibold tracking-tight text-slate-950">
+                      {title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {description}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="px-6 py-20 sm:py-24">
+          <div className="mx-auto max-w-2xl rounded-xl border border-slate-200/80 bg-white px-10 py-14 text-center shadow-sm md:py-16">
+            <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Your next idea needs a little room.
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-slate-600">
+              Create a canvas, bring in your collaborators, and let the first
+              draft be imperfect.
+            </p>
+            <Button asChild size="lg" className="mt-8 gap-2 rounded-lg">
+              <Link href="/signup">
+                Create a canvas <ArrowRight className="size-4" />
               </Link>
             </Button>
-
-            <Button asChild className="w-full sm:w-auto rounded-lg gap-2" size="lg" variant="outline">
-              <a
-                href="https://github.com/adityasrc/flowboard"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <GithubIcon size={15} />
-                View source
-              </a>
-            </Button>
-          </div>
-
-          <p className="text-[11.5px] font-mono text-slate-500 mb-8 tracking-wide">
-            TypeScript · React / Next.js · Node.js · ws · PostgreSQL · Prisma · Rough.js
-          </p>
-
-          <div className="w-full max-w-5xl mx-auto">
-            <CanvasMockup />
           </div>
         </section>
 
-        <section className="py-8 md:py-12 px-6 max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-slate-200/80 bg-white px-6 py-5">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-4">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="4" cy="8" r="2.5" stroke="#334155" strokeWidth="1.4"/>
-                  <circle cx="12" cy="4" r="2.5" stroke="#334155" strokeWidth="1.4"/>
-                  <circle cx="12" cy="12" r="2.5" stroke="#334155" strokeWidth="1.4"/>
-                  <line x1="6.2" y1="7.1" x2="9.8" y2="4.9" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                  <line x1="6.2" y1="8.9" x2="9.8" y2="11.1" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <h3 className="text-[14px] font-semibold text-slate-950 mb-1.5 tracking-tight">Real-time collaboration</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Shapes and cursors sync instantly across all connected users over a native WebSocket connection.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200/80 bg-white px-6 py-5">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-4">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="#334155" strokeWidth="1.4"/>
-                  <path d="M5 4V3C5 2.45 5.45 2 6 2H10C10.55 2 11 2.45 11 3V4" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                  <line x1="5" y1="8" x2="11" y2="8" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                  <line x1="5" y1="10.5" x2="8.5" y2="10.5" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <h3 className="text-[14px] font-semibold text-slate-950 mb-1.5 tracking-tight">Persistent canvases</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Every shape is stored in PostgreSQL. Canvases survive refreshes, reconnects, and come back exactly as you left them.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200/80 bg-white px-6 py-5">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-4">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6.5 3H3.5C2.67 3 2 3.67 2 4.5V12.5C2 13.33 2.67 14 3.5 14H11.5C12.33 14 13 13.33 13 12.5V9.5" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                  <path d="M9 2H14V7" stroke="#334155" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="14" y1="2" x2="7.5" y2="8.5" stroke="#334155" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <h3 className="text-[14px] font-semibold text-slate-950 mb-1.5 tracking-tight">Shareable rooms</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Each canvas gets a unique URL. Share it and collaborators join instantly — no sign-up required on their end.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="pt-2 pb-16 md:pb-20 px-6 text-center max-w-xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 mb-3">
-            Ready to collaborate?
-          </h2>
-          <p className="text-[15px] text-slate-600 mb-8">
-            Create a room, share the URL, and start diagramming with your team instantly. No plugins or installs required.
-          </p>
-          <Button asChild className="rounded-lg gap-2" size="lg">
-            <Link href="/dashboard">
-              Start drawing
-              <ArrowRight size={15} />
-            </Link>
-          </Button>
-        </section>
       </main>
-
       <LandingFooter />
     </div>
   );
