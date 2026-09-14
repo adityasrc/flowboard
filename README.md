@@ -1,4 +1,4 @@
-﻿# Flowboard
+# Flowboard
 
 A collaborative whiteboard with a custom HTML5 Canvas drawing engine, a native Node.js WebSocket server, JWT authentication, and PostgreSQL persistence. Multiple users can draw on a shared canvas in real time. Shapes sync to all connected clients immediately and persist across sessions.
 
@@ -23,16 +23,16 @@ Built without third-party real-time services. The WebSocket server is a plain No
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 16 (App Router), React 19, TypeScript |
-| Rendering | HTML5 Canvas + Rough.js |
-| Styling | Tailwind CSS v4, Radix UI, shadcn/ui |
-| HTTP API | Node.js, Express, Zod, express-rate-limit |
-| WebSocket | Node.js, `ws` library |
-| Database | PostgreSQL, Prisma ORM |
-| Auth | JWT (bcrypt password hashing) |
-| Monorepo | Turborepo, pnpm workspaces |
+| Layer     | Technology                                    |
+| --------- | --------------------------------------------- |
+| Frontend  | Next.js 16 (App Router), React 19, TypeScript |
+| Rendering | HTML5 Canvas + Rough.js                       |
+| Styling   | Tailwind CSS v4, Radix UI (via shadcn/ui)     |
+| HTTP API  | Node.js, Express, Zod, express-rate-limit     |
+| WebSocket | Node.js, `ws` library                         |
+| Database  | PostgreSQL, Prisma ORM                        |
+| Auth      | JWT (bcrypt password hashing)                 |
+| Monorepo  | Turborepo, pnpm workspaces                    |
 
 ---
 
@@ -54,6 +54,7 @@ Browser
 ```
 
 **Draw event flow:**
+
 1. Shape is created on mouseup, serialized, and passed to `socket.send()`.
 2. The WebSocket server resolves the room ID (LRU cache, then DB) and broadcasts to connected peers.
 3. The database write fires asynchronously after broadcast - a slow write does not delay peers.
@@ -152,6 +153,9 @@ Turborepo builds packages in dependency order and caches outputs by content hash
 **JWT via `Sec-WebSocket-Protocol`**
 The browser WebSocket API does not support custom headers on the initial handshake. Passing the token in the URL exposes it in server access logs. The `Sec-WebSocket-Protocol` header is the standard workaround - it's available at handshake time and keeps the token out of logs. The server echoes it back to complete the upgrade.
 
+**7-day JWT expiration without refresh tokens**
+Access tokens are signed with a 7-day expiration and stored client-side. For this project scope, a long-lived single token avoids the complexity of refresh-token rotation and background re-auth plumbing while keeping active collaboration sessions uninterrupted.
+
 **Fire-and-forget database writes**
 Shapes are broadcast to peers before the database write completes. The tradeoff is that a crash in the narrow window between broadcast and write could lose a shape. In practice that window is a few milliseconds. Waiting for a DB acknowledgement before broadcasting would add query latency to every draw event for every connected user.
 
@@ -165,7 +169,9 @@ Cursor positions are ephemeral - they have no meaning after the connection drops
 
 ## Known Limitations
 
-**Silent disconnect window.** When a physical network drops, the browser may report `readyState === OPEN` for several seconds while the TCP stack times out. Shapes sent during this window are buffered by the OS and silently discarded when the connection closes. Shapes drawn *after* `onclose` fires are queued and replayed correctly.
+**No shape selection or movement.** Placed shapes cannot be selected, dragged, or resized after drawing; the canvas model is strictly additive (drawing) and subtractive (eraser/undo).
+
+**Silent disconnect window.** When a physical network drops, the browser may report `readyState === OPEN` for several seconds while the TCP stack times out. Shapes sent during this window are buffered by the OS and silently discarded when the connection closes. Shapes drawn _after_ `onclose` fires are queued and replayed correctly.
 
 **Single server instance.** Room state is held in process memory. Running multiple WebSocket server instances would require a pub/sub layer (e.g. Redis) to relay events across them.
 
@@ -178,5 +184,4 @@ Cursor positions are ephemeral - they have no meaning after the connection drops
 - Redis pub/sub for horizontal WebSocket scaling
 - Canvas panning and zoom
 - Shape selection and repositioning after placement
-- Per-room access control (currently any authenticated user can join any room by slug)
-
+- Granular room permissions (e.g. view-only links vs. editor access; currently any authenticated user with a room link can join as a collaborator)
