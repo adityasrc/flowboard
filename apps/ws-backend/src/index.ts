@@ -1,3 +1,4 @@
+import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "./config";
@@ -6,12 +7,31 @@ import { client } from "@repo/db/client";
 const port = process.env.PORT ? Number(process.env.PORT) : 8081;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
+const server = http.createServer((req, res) => {
+  if (req.url === "/health" || req.url === "/") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(
+      JSON.stringify({
+        status: "ok",
+        service: "ws-backend",
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
+  res.writeHead(404);
+  res.end();
+});
+
 const wss = new WebSocketServer({
-  port,
+  server,
   handleProtocols: (protocols) => {
     const [first] = protocols;
     return first ?? false;
   },
+});
+
+server.listen(port, () => {
+  console.log(`WebSocket server listening on port ${port}`);
 });
 
 interface User {
