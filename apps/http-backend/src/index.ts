@@ -20,10 +20,36 @@ const port = process.env.HTTP_PORT || 3001;
 // Trust reverse proxy (for real client IP in rate limiters)
 app.set("trust proxy", 1);
 
-app.use(helmet());
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://flowboardhq.vercel.app",
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.trim().replace(/\/$/, ""));
+}
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const normalizedOrigin = origin.trim().replace(/\/$/, "");
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        /^https:\/\/([a-z0-9-]+\.)*vercel\.app$/.test(normalizedOrigin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true,
   }),
 );
 app.use(express.json({ limit: "1mb" }));
@@ -218,7 +244,12 @@ app.get(
       }
 
       if (roomData.members.length === 0) {
-        return res.status(403).json({ message: "Join this room first" });
+        await client.room.update({
+          where: { id: roomData.id },
+          data: {
+            members: { connect: { id: userId } },
+          },
+        });
       }
 
       const shapes = await client.shape.findMany({

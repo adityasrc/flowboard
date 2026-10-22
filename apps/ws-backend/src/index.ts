@@ -189,14 +189,22 @@ wss.on("connection", function connection(ws, request) {
               },
             });
 
-            if (!membership || membership.members.length === 0) {
+            if (!membership) {
               ws.send(
-                JSON.stringify({
-                  type: "error",
-                  message: "Not a member of this room.",
-                }),
+                JSON.stringify({ type: "error", message: "Room not found." }),
               );
               break;
+            }
+
+            if (membership.members.length === 0) {
+              await client.room.update({
+                where: { id: roomId },
+                data: {
+                  members: {
+                    connect: { id: Number(userId) },
+                  },
+                },
+              });
             }
 
             if (!user.rooms.includes(roomSlug)) {
